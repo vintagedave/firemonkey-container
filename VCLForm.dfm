@@ -2,8 +2,8 @@ object Form1: TForm1
   Left = 0
   Top = 0
   Caption = 'VCL form'
-  ClientHeight = 369
-  ClientWidth = 681
+  ClientHeight = 340
+  ClientWidth = 680
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -12,12 +12,12 @@ object Form1: TForm1
   Font.Style = []
   OldCreateOrder = False
   DesignSize = (
-    681
-    369)
+    680
+    340)
   PixelsPerInch = 96
   TextHeight = 13
   object Label1: TLabel
-    Left = 466
+    Left = 465
     Top = 18
     Width = 203
     Height = 19
@@ -32,10 +32,10 @@ object Form1: TForm1
     ExplicitLeft = 551
   end
   object Label2: TLabel
-    Left = 466
+    Left = 465
     Top = 48
     Width = 203
-    Height = 300
+    Height = 277
     Anchors = [akTop, akRight, akBottom]
     AutoSize = False
     Caption = 
@@ -43,29 +43,25 @@ object Form1: TForm1
       'onkeyContainer inside a TPanel (to show a border.)  It is holdin' +
       'g a FireMonkey form.'
     WordWrap = True
-    ExplicitLeft = 551
-    ExplicitHeight = 343
   end
   object Panel1: TPanel
     Left = 16
     Top = 16
-    Width = 436
-    Height = 334
+    Width = 435
+    Height = 311
     Anchors = [akLeft, akTop, akRight, akBottom]
     BevelInner = bvLowered
     Caption = 'Panel1'
     TabOrder = 0
-    ExplicitWidth = 521
-    ExplicitHeight = 377
     object FireMonkeyContainer1: TFireMonkeyContainer
       Left = 2
       Top = 2
-      Width = 432
-      Height = 330
+      Width = 431
+      Height = 307
       FireMonkeyForm = FireMonkeyForm.Owner
       Align = alClient
-      ExplicitWidth = 517
-      ExplicitHeight = 373
+      ExplicitTop = 3
+      ExplicitHeight = 301
     end
   end
 end
