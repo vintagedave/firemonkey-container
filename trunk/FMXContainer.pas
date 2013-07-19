@@ -77,6 +77,12 @@ implementation
 uses
   FMX.Platform, FMX.Platform.Win, System.Types, SysUtils, Graphics, Vcl.Forms;
 
+const
+  PW_CLIENTONLY = $1;
+
+var
+  PFPrintWindow : function(Hnd: HWND; HdcBlt: HDC; nFlags: UINT): BOOL; stdcall; // Not declared in Windows.pas
+
 function EnumWindowCallback(hWnd: HWND; lParam: LPARAM): BOOL; stdcall;
 const
   FMXClassName = 'TFMAppClass';
@@ -186,7 +192,6 @@ end;
 procedure TFireMonkeyContainer.HandleResize;
 var
   WindowService : IFMXWindowService;
-  DesignRect : TRectF;
 begin
   if csDesigning in ComponentState then Exit; // Do not actually change the form when designing
 
@@ -231,9 +236,8 @@ end;
 
 procedure TFireMonkeyContainer.HostTheFMXForm;
 begin
-  if csDesigning in ComponentState then begin
-    //!!! Get image, draw that
-  end else begin
+  // Don't change the FMX form, subclass the aprent form etc when in design mode
+  if not (csDesigning in ComponentState) then begin
     FFMXForm.BorderIcons := [];
     FFMXForm.BorderStyle := TFmxFormBorderStyle.bsNone;
     HandleResize;
@@ -276,7 +280,15 @@ begin
       Canvas.Brush.Style := bsClear;
       // If hosting a form, paint an image of it
       if Assigned(FFMXForm) then begin
-        //!!! paint image of FFMXForm
+        if Assigned(PFPrintWindow) then
+          PFPrintWindow(GetFMXFormWindowHandle, Canvas.Handle, PW_CLIENTONLY)
+        else begin
+          // Paint a message that was unable to show a preview image
+          Rect.Inflate(-16, -16);
+          strText := FFMXForm.Name + ' : Unable to draw preview image';
+          Winapi.Windows.DrawTextEx(Canvas.Handle, PChar(strText), Length(strText), Rect,
+            DT_CENTER or DT_WORDBREAK or DT_END_ELLIPSIS, nil);
+        end;
       end else begin
         // Otherwise, paint a message that you can host a form
         Rect.Inflate(-16, -16);
@@ -291,5 +303,11 @@ begin
     end;
   end;
 end;
+
+initialization
+  PFPrintWindow := GetProcAddress(GetModuleHandle(Winapi.Windows.user32), 'PrintWindow'); // XP+ only
+
+finalization
+  PFPrintWindow := nil;
 
 end.
