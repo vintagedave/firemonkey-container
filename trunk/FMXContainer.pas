@@ -76,7 +76,7 @@ type
 implementation
 
 uses
-  FMX.Platform, FMX.Platform.Win, System.Types, SysUtils, Graphics, Vcl.Forms;
+  FMX.Platform, FMX.Platform.Win, System.Types, SysUtils, Graphics, Vcl.Forms, Vcl.Dialogs;
 
 const
   PW_CLIENTONLY = $1;
@@ -236,9 +236,20 @@ begin
 end;
 
 procedure TFireMonkeyContainer.Notification(AComponent: TComponent; Operation: TOperation);
+const
+  strLostReference = 'The form %s has been closed, and so the %s.FireMonkeyForm property has been set to nil.'
+    + #10#13 + #10#13
+    + 'Either keep the FireMonkey form open in the IDE while the VCL form hosting it (%s) is open,'
+    + ' or use the TFireMonkeyContainer events OnCreateFMXForm and OnDestroyFMXForm to define the hosted'
+    + ' FireMonkey form.';
 begin
   if (Operation = opRemove) and (AComponent = FFMXForm) then begin
+    if csDesigning in ComponentState then begin
+      Vcl.Dialogs.MessageDlg(Format(strLostReference, [FFMXForm.Name, GetParentForm(Self).Name + '.' + Name, GetParentForm(Self).Name]),
+        mtWarning, [mbOk], 0, mbOk);
+    end;
     SetFMXForm(nil);
+    Invalidate; // Repaint to show missing form, not 'unable to draw form'
   end;
   inherited;
 end;
@@ -277,8 +288,8 @@ end;
 procedure TFireMonkeyContainer.WMPaint(var Message: TWMPaint);
 const
   strDefaultText = 'TFireMonkeyContainer' + #10#13#10#13 + 'Set the FireMonkeyForm property to ' +
-    ' an autocreated FireMonkey form at designtime, or in code at runtime. You can host both' +
-    ' 2D (HD) and 3D FireMonkey forms.';
+    ' an autocreated FireMonkey form at designtime, or in code at runtime using the  OnCreateFMXForm' +
+    ' and OnDestroyFMXForm events (recommended.) You can host both 2D (HD) and 3D FireMonkey forms.';
 var
   Canvas : TControlCanvas;
   Rect : TRect;
