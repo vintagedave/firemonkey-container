@@ -57,6 +57,7 @@ type
   protected
     procedure Resize; override;
     procedure CreateHandle; override;
+    procedure Notification(AComponent: TComponent; Operation: TOperation); override;
   public
     constructor Create(Owner : TComponent); override;
     destructor Destroy; override;
@@ -189,6 +190,21 @@ begin
   FOldWndProc(Msg);
 end;
 
+procedure TFireMonkeyContainer.WMEraseBkgnd(var Message: TWMEraseBkgnd);
+begin
+  // Prevent flicker when resizing
+  if Assigned(FFMXForm) then
+    Message.Result := 1
+  else
+    inherited;
+end;
+
+procedure TFireMonkeyContainer.Resize;
+begin
+  inherited;
+  HandleResize;
+end;
+
 procedure TFireMonkeyContainer.HandleResize;
 var
   WindowService : IFMXWindowService;
@@ -202,16 +218,16 @@ begin
   end;
 end;
 
-procedure TFireMonkeyContainer.Resize;
-begin
-  inherited;
-  HandleResize;
-end;
-
 procedure TFireMonkeyContainer.SetFMXForm(Form: FMX.Forms.TCommonCustomForm);
 begin
+  if Assigned(FFMXForm) then begin
+    UnSubclassForm;
+    FFMXForm.RemoveFreeNotification(Self);
+  end;
+
   FFMXForm := Form;
   if Assigned(FFMXForm) then begin
+    FFMXForm.FreeNotification(Self);
     HideFMAppClassWindow;
     if HandleAllocated then HostTheFMXForm; // Will otherwise occur in CreateHandle
   end else begin
@@ -219,24 +235,17 @@ begin
   end;
 end;
 
-procedure TFireMonkeyContainer.WMEraseBkgnd(var Message: TWMEraseBkgnd);
+procedure TFireMonkeyContainer.Notification(AComponent: TComponent; Operation: TOperation);
 begin
-  // Prevent flicker when resizing
-  if Assigned(FFMXForm) then
-    Message.Result := 1
-  else
-    inherited;
-end;
-
-procedure TFireMonkeyContainer.HideFMAppClassWindow;
-begin
-  // XE4 (possibly others) show a phantom TFMAppClass window on the taskbar. Hide it.
-  EnumWindows(@EnumWindowCallback, 0);
+  if (Operation = opRemove) and (AComponent = FFMXForm) then begin
+    SetFMXForm(nil);
+  end;
+  inherited;
 end;
 
 procedure TFireMonkeyContainer.HostTheFMXForm;
 begin
-  // Don't change the FMX form, subclass the aprent form etc when in design mode
+  // Don't change the FMX form etc when in design mode - changes the actual, designing form in the IDE tab
   if not (csDesigning in ComponentState) then begin
     FFMXForm.BorderIcons := [];
     FFMXForm.BorderStyle := TFmxFormBorderStyle.bsNone;
@@ -247,19 +256,29 @@ begin
   end;
 end;
 
+procedure TFireMonkeyContainer.HideFMAppClassWindow;
+begin
+  // XE4 (possibly others) show a phantom TFMAppClass window on the taskbar. Hide it.
+  EnumWindows(@EnumWindowCallback, 0);
+end;
+
 function TFireMonkeyContainer.GetFMXFormWindowHandle: HWND;
+var
+  WinHandle : TWinWindowHandle;
 begin
   assert(Assigned(FFMXForm));
-  if Assigned(FFMXForm.Handle) then
-    Result := WindowHandleToPlatform(FFMXForm.Handle).Wnd
-  else Result := 0;
+  Result := 0;
+  if Assigned(FFMXForm) and Assigned(FFMXForm.Handle) then begin
+    WinHandle := WindowHandleToPlatform(FFMXForm.Handle);
+    if Assigned(WinHandle) then Exit(WinHandle.Wnd);
+  end;
 end;
 
 procedure TFireMonkeyContainer.WMPaint(var Message: TWMPaint);
 const
   strDefaultText = 'TFireMonkeyContainer' + #10#13#10#13 + 'Set the FireMonkeyForm property to ' +
-    ' an autocreated FireMonkey form at designtime (with some limitation), or in code at runtime. You can' +
-    ' host both 2D (HD) and 3D FireMonkey forms.';
+    ' an autocreated FireMonkey form at designtime, or in code at runtime. You can host both' +
+    ' 2D (HD) and 3D FireMonkey forms.';
 var
   Canvas : TControlCanvas;
   Rect : TRect;
@@ -280,9 +299,7 @@ begin
       Canvas.Brush.Style := bsClear;
       // If hosting a form, paint an image of it
       if Assigned(FFMXForm) then begin
-        if Assigned(PFPrintWindow) then
-          PFPrintWindow(GetFMXFormWindowHandle, Canvas.Handle, PW_CLIENTONLY)
-        else begin
+        if not Assigned(PFPrintWindow) or (not PFPrintWindow(GetFMXFormWindowHandle, Canvas.Handle, PW_CLIENTONLY)) then begin
           // Paint a message that was unable to show a preview image
           Rect.Inflate(-16, -16);
           strText := FFMXForm.Name + ' : Unable to draw preview image';
