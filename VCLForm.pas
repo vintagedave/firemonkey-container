@@ -3,7 +3,8 @@ unit VCLForm;
 interface
 
 uses
-  FMX.Forms, Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  FMX.Forms { must be included before Vcl.Forms so that 'TForm' below refers to a VCL form, not FMX},
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, FMXForm, FMXContainer, Vcl.ExtCtrls,
   Vcl.StdCtrls;
 
