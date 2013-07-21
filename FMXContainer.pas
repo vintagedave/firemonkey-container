@@ -34,26 +34,51 @@ interface
 uses
   Vcl.Controls, FMX.Forms, Winapi.Messages, System.Classes, Winapi.Windows;
 
+const
+  WM_FMX_FORM_ACTIVATED = WM_USER + 1;
+
 type
+  TOnCreateFMXFormEvent = procedure(var Form : FMX.Forms.TCommonCustomForm) of object;
+  TCloseHostedFMXFormAction = (fcaNone, fcaFree);
+  TOnDestroyFMXFormEvent = procedure(var Form : FMX.Forms.TCommonCustomForm; var Action : TCloseHostedFMXFormAction) of object;
+
   [ComponentPlatformsAttribute(pidWin32 or pidWin64)] // Thanks Edgar Reis
   TFireMonkeyContainer = class(TWinControl)
   private
     FFMXForm : FMX.Forms.TCommonCustomForm;
-    FOldWndProc : System.Classes.TWndMethod;
+    FOldVCLWndProc : System.Classes.TWndMethod;
+    FOldFMXWndProc : Winapi.Windows.TFNWndProc;
+    FNewFMXWndProc : Pointer;
+    FOnCreateForm : TOnCreateFMXFormEvent;
+    FOnDestroyForm : TOnDestroyFMXFormEvent;
+    FCreateFormCalled : Boolean;
+    FHandlingFMXActivation : Boolean;
+
+    procedure DoOnCreate;
+    procedure DoOnDestroy;
 
     procedure SetFMXForm(Form : FMX.Forms.TCommonCustomForm);
     procedure HandleResize;
     procedure HostTheFMXForm;
     procedure HideFMAppClassWindow;
-    function GetFMXFormWindowHandle : HWND;
+    function GetHostedFMXFormWindowHandle : HWND;
+    function GetFMXFormWindowHandle(const Form: FMX.Forms.TCommonCustomForm) : HWND;
 
-    procedure FormWndProc(var Msg: TMessage);
-    procedure SubClassForm;
-    procedure UnsubClassForm;
-    procedure HandleFormNcActivate(var Msg: TMessage);
+    procedure SubClassVCLForm;
+    procedure UnSubClassVCLForm;
+    procedure VCLFormWndProc(var Msg: TMessage);
+    procedure HandleVCLFormNcActivate(var Msg: TMessage);
+
+    procedure SubClassFMXForm;
+    procedure UnSubClassFMXForm;
+    procedure FMXFormWndProc(var Msg: TMessage);
+    procedure HandleFMXFormActivate(var Msg: TMessage);
+
+    function IsWindowInVCLFormTree(const Wnd : HWND) : Boolean;
 
     procedure WMEraseBkgnd(var Message: TWMEraseBkgnd); message WM_ERASEBKGND;
     procedure WMPaint(var Message: TWMPaint); message WM_PAINT;
+    procedure WMFmxFormActivated(var Message: TMessage); message WM_FMX_FORM_ACTIVATED;
   protected
     procedure Resize; override;
     procedure CreateHandle; override;
@@ -61,8 +86,11 @@ type
   public
     constructor Create(Owner : TComponent); override;
     destructor Destroy; override;
+    procedure BeforeDestruction; override;
   published
     property FireMonkeyForm : FMX.Forms.TCommonCustomForm read FFMXForm write SetFMXForm;
+    property OnCreateFMXForm : TOnCreateFMXFormEvent read FOnCreateForm write FOnCreateForm;
+    property OnDestroyFMXForm : TOnDestroyFMXFormEvent read FOnDestroyForm write FOnDestroyForm;
     property Align;
     property Anchors;
     property Constraints;
@@ -115,50 +143,129 @@ constructor TFireMonkeyContainer.Create(Owner: TComponent);
 begin
   inherited Create(Owner);
   FFMXForm := nil;
-  FOldWndProc := nil;
+  FOldVCLWndProc := nil;
+  FOldFMXWndProc := nil;
+  FNewFMXWndProc := nil;
+  FCreateFormCalled := false;
+  FHandlingFMXActivation := false;
 end;
 
 destructor TFireMonkeyContainer.Destroy;
 begin
-  UnsubclassForm;
+  UnSubClassVCLForm;
+  if Assigned(FFMXForm) then UnSubClassFMXForm;
   inherited;
+end;
+
+procedure TFireMonkeyContainer.BeforeDestruction;
+begin
+  DoOnDestroy;
+  inherited;
+end;
+
+procedure TFireMonkeyContainer.DoOnCreate;
+var
+  OldForm, Form : FMX.Forms.TCommonCustomForm;
+  Action : TCloseHostedFMXFormAction;
+begin
+  if (not FCreateFormCalled) and Assigned(FOnCreateForm) and not (csDesigning in ComponentState) then begin
+    FCreateFormCalled := true;
+    Form := FFMXForm;
+    FOnCreateForm(Form);
+    if (Form <> FFMXForm) and Assigned(FOnDestroyForm) then begin
+      // Changed: want a new form, not the one it was set to. Call OnDestroy for the existing one,
+      // otherwise free
+      Action := fcaNone;
+      FOnDestroyForm(FFMXForm, Action);
+      case Action of
+        fcaNone: ;
+        fcaFree: begin
+          OldForm := FFMXForm;
+          SetFMXForm(nil);
+          OldForm.Free;
+        end;
+      end;
+    end;
+    SetFMXForm(Form);
+  end;
+end;
+
+procedure TFireMonkeyContainer.DoOnDestroy;
+var
+  Action : TCloseHostedFMXFormAction;
+  OldForm : FMX.Forms.TCommonCustomForm;
+begin
+  if Assigned(FOnDestroyForm) and not (csDesigning in ComponentState) then begin
+    Action := fcaNone;
+    FOnDestroyForm(FFMXForm, Action);
+    case Action of
+      fcaNone: ;
+      fcaFree: begin
+        OldForm := FFMXForm;
+        SetFMXForm(nil);
+        OldForm.Free;
+      end;
+    end;
+  end;
 end;
 
 procedure TFireMonkeyContainer.CreateHandle;
 begin
+  UnSubClassVCLForm;
   inherited;
+  SubClassVCLForm;
+
+  // Call OnCreateForm now.  Loaded() is too early - a linked autocreated FMX form won't be created yet.
+  // When this component's handle is first created, it and the parent form and the FMX form are
+  // guaranteed to exist
+  // I'd like an earlier time since this is quite late, but I can't find a reliable one...
+  DoOnCreate; // Checks it is only called once (handle can be recreated)
+
   // When this form's handle changes, update the hosted FMX form (setting parent, position, etc)
-  UnSubclassForm;
   if Assigned(FFMXForm) then begin
     HostTheFMXForm;
   end;
 end;
 
-procedure TFireMonkeyContainer.SubClassForm;
+function TFireMonkeyContainer.IsWindowInVCLFormTree(const Wnd: HWND): Boolean;
+var
+  ParentForm : TCustomForm;
 begin
-  FOldWndProc := GetParentForm(Self).WindowProc;
-  GetParentForm(Self).WindowProc := FormWndProc;
+  ParentForm := GetParentForm(Self);
+  Result := (Wnd = ParentForm.Handle) or
+    Winapi.Windows.IsChild(ParentForm.Handle, Wnd) or
+    (Wnd = GetHostedFMXFormWindowHandle);
 end;
 
-procedure TFireMonkeyContainer.UnsubClassForm;
+procedure TFireMonkeyContainer.SubClassVCLForm;
 begin
-  if Assigned(FOldWndProc) and Assigned(GetParentForm(Self)) then begin
-    GetParentForm(Self).WindowProc := FOldWndProc;
-    FOldWndProc := nil;
+  if csDesigning in ComponentState then Exit;
+
+  FOldVCLWndProc := GetParentForm(Self).WindowProc;
+  GetParentForm(Self).WindowProc := VCLFormWndProc;
+end;
+
+procedure TFireMonkeyContainer.UnSubClassVCLForm;
+begin
+  if csDesigning in ComponentState then Exit;
+
+  if Assigned(FOldVCLWndProc) and Assigned(GetParentForm(Self)) then begin
+    GetParentForm(Self).WindowProc := FOldVCLWndProc;
+    FOldVCLWndProc := nil;
   end;
 end;
 
-procedure TFireMonkeyContainer.FormWndProc(var Msg: TMessage);
+procedure TFireMonkeyContainer.VCLFormWndProc(var Msg: TMessage);
 begin
-  assert(Assigned(FOldWndProc));
-  if Msg.Msg = WM_NCACTIVATE then begin
-    HandleFormNcActivate(Msg);
-  end else begin
-    FOldWndProc(Msg);
-  end;
+  assert(Assigned(FOldVCLWndProc));
+
+  if (Msg.Msg = WM_NCACTIVATE) and Assigned(FFMXForm) then begin
+    HandleVCLFormNcActivate(Msg);
+  end else
+    FOldVCLWndProc(Msg);
 end;
 
-procedure TFireMonkeyContainer.HandleFormNcActivate(var Msg: TMessage);
+procedure TFireMonkeyContainer.HandleVCLFormNcActivate(var Msg: TMessage);
 var
   FMXHandle : Winapi.Windows.HWND;
   Active : Boolean;
@@ -168,8 +275,9 @@ begin
   // When the FMX form is clicked, the VCL forms draws with an inactive title bar, despite the
   // window parenting.  Fix this by changing the active value the VCL form is told to draw
   assert(Msg.Msg = WM_NCACTIVATE);
+  assert(Assigned(FFMXForm));
 
-  FMXHandle := GetFMXFormWindowHandle;
+  FMXHandle := GetHostedFMXFormWindowHandle;
   ParentForm := GetParentForm(Self);
 
   // If wants to draw as active, fine, pass through
@@ -180,14 +288,96 @@ begin
     if HandleBeingActivated = 0 then begin
       Active := false // Window being activated belongs to another thread
     end else begin
-      Active := (HandleBeingActivated = ParentForm.Handle) or
-        Winapi.Windows.IsChild(ParentForm.Handle, HandleBeingActivated) or
-        (HandleBeingActivated = FMXHandle);
+      Active := IsWindowInVCLFormTree(HandleBeingActivated);
     end;
     Msg.WParam := WPARAM(Active);
   end;
 
-  FOldWndProc(Msg);
+  FOldVCLWndProc(Msg);
+end;
+
+procedure TFireMonkeyContainer.SubClassFMXForm;
+var
+  FMXHandle : HWND;
+begin
+  if csDesigning in ComponentState then Exit;
+
+  FMXHandle := GetHostedFMXFormWindowHandle;
+  if (FMXHandle <> 0) and not Assigned(FOldFMXWndProc) then begin // Not already subclassed
+    // Subclass FMX windows the old-fashioned way - no WindowProc property to assign
+    FOldFMXWndProc := TFNWndProc(Winapi.Windows.GetWindowLong(FMXHandle, GWL_WNDPROC));
+    FNewFMXWndProc := MakeObjectInstance(FMXFormWndProc);
+    Winapi.Windows.SetWindowLong(FMXHandle, GWL_WNDPROC, NativeInt(FNewFMXWndProc));
+  end;
+end;
+
+procedure TFireMonkeyContainer.UnSubClassFMXForm;
+var
+  FMXHandle : HWND;
+begin
+  if csDesigning in ComponentState then Exit;
+
+  FMXHandle := GetHostedFMXFormWindowHandle;
+  assert(FMXHandle <> 0);
+  if Assigned(FOldFMXWndProc) then begin
+    Winapi.Windows.SetWindowLong(FMXHandle, GWL_WNDPROC, NativeInt(FOldFMXWndProc));
+    FreeObjectInstance(FNewFMXWndProc);
+    FNewFMXWndProc := nil;
+    FOldFMXWndProc := nil;
+  end;
+end;
+
+procedure TFireMonkeyContainer.FMXFormWndProc(var Msg: TMessage);
+begin
+  if (Msg.Msg = WM_ACTIVATE) or (Msg.Msg = WM_MOUSEACTIVATE) then begin
+    HandleFMXFormActivate(Msg);
+  end;
+  Msg.Result := CallWindowProc(FOldFMXWndProc, GetHostedFMXFormWindowHandle, Msg.Msg, Msg.WParam, Msg.LParam);
+end;
+
+procedure TFireMonkeyContainer.HandleFMXFormActivate(var Msg: TMessage);
+begin
+  assert((Msg.Msg = WM_ACTIVATE) or (Msg.Msg = WM_MOUSEACTIVATE));
+  // So many brackets! But: "if this isn't recursively being sent, and it's an activation message"
+  if (not FHandlingFMXActivation and HandleAllocated) and
+     (((Msg.Msg = WM_ACTIVATE) and (Msg.WParam <> WA_INACTIVE)) or
+      ((Msg.Msg = WM_MOUSEACTIVATE) and ((Msg.WParam = MA_ACTIVATE) or ((Msg.WParam = MA_ACTIVATEANDEAT))))) then
+  begin
+    Winapi.Windows.PostMessage(Handle, WM_FMX_FORM_ACTIVATED, 0, 0);
+  end;
+end;
+
+procedure TFireMonkeyContainer.WMFmxFormActivated(var Message: TMessage);
+var
+  VCLForm : Vcl.Forms.TCustomForm;
+  FMXForm : FMX.Forms.TCommonCustomForm;
+  Loop : Integer;
+begin
+  // When the FMX form is clicked on, it activates (and gets focus etc) but the host VCL form doesn't
+  // so the previous window stays on top and draws as active. Solve this by setting the active window
+  // first to the host VCL form, then the hosted FMX form, so end up with an active FMX form in a
+  // on-top, drawing-as-active VCL form.
+  // The title bar still messes up occasionally: fix it by telling other forms they are not active.
+  FHandlingFMXActivation := true;
+  try
+    SetActiveWindow(GetParentForm(Self).Handle);
+    SetActiveWindow(GetHostedFMXFormWindowHandle);
+
+    for Loop := 0 to Vcl.Forms.Screen.CustomFormCount-1 do begin
+      VCLForm := Vcl.Forms.Screen.CustomForms[Loop];
+      if VCLForm <> GetParentForm(Self) then
+        Winapi.Windows.PostMessage(VCLForm.Handle, WM_NCACTIVATE, WPARAM(False), 0);
+    end;
+    for Loop := 0 to FMX.Forms.Screen.FormCount-1 do begin
+      FMXForm := FMX.Forms.Screen.Forms[Loop];
+      if FMXForm <> FFMXForm then
+        Winapi.Windows.PostMessage(GetFMXFormWindowHandle(FMXForm), WM_NCACTIVATE, WPARAM(False), 0);
+    end;
+
+    Winapi.Windows.SetFocus(GetHostedFMXFormWindowHandle);
+  finally
+    FHandlingFMXActivation := false;
+  end;
 end;
 
 procedure TFireMonkeyContainer.WMEraseBkgnd(var Message: TWMEraseBkgnd);
@@ -221,17 +411,16 @@ end;
 procedure TFireMonkeyContainer.SetFMXForm(Form: FMX.Forms.TCommonCustomForm);
 begin
   if Assigned(FFMXForm) then begin
-    UnSubclassForm;
+    UnSubClassFMXForm;
     FFMXForm.RemoveFreeNotification(Self);
   end;
 
   FFMXForm := Form;
+
   if Assigned(FFMXForm) then begin
     FFMXForm.FreeNotification(Self);
     HideFMAppClassWindow;
     if HandleAllocated then HostTheFMXForm; // Will otherwise occur in CreateHandle
-  end else begin
-    UnSubclassForm;
   end;
 end;
 
@@ -262,8 +451,8 @@ begin
     FFMXForm.BorderStyle := TFmxFormBorderStyle.bsNone;
     HandleResize;
     FFMXForm.Visible := True;
-    Winapi.Windows.SetParent(GetFMXFormWindowHandle, Handle);
-    SubClassForm;
+    Winapi.Windows.SetParent(GetHostedFMXFormWindowHandle, Handle);
+    SubclassFMXForm;
   end;
 end;
 
@@ -273,14 +462,22 @@ begin
   EnumWindows(@EnumWindowCallback, 0);
 end;
 
-function TFireMonkeyContainer.GetFMXFormWindowHandle: HWND;
+function TFireMonkeyContainer.GetHostedFMXFormWindowHandle: HWND;
 var
   WinHandle : TWinWindowHandle;
 begin
   assert(Assigned(FFMXForm));
+  Result := GetFMXFormWindowHandle(FFMXForm);
+end;
+
+function TFireMonkeyContainer.GetFMXFormWindowHandle(const Form: FMX.Forms.TCommonCustomForm): HWND;
+var
+  WinHandle : TWinWindowHandle;
+begin
+  assert(Assigned(Form));
   Result := 0;
-  if Assigned(FFMXForm) and Assigned(FFMXForm.Handle) then begin
-    WinHandle := WindowHandleToPlatform(FFMXForm.Handle);
+  if Assigned(Form) and Assigned(Form.Handle) then begin
+    WinHandle := WindowHandleToPlatform(Form.Handle);
     if Assigned(WinHandle) then Exit(WinHandle.Wnd);
   end;
 end;
@@ -310,7 +507,7 @@ begin
       Canvas.Brush.Style := bsClear;
       // If hosting a form, paint an image of it
       if Assigned(FFMXForm) then begin
-        if not Assigned(PFPrintWindow) or (not PFPrintWindow(GetFMXFormWindowHandle, Canvas.Handle, PW_CLIENTONLY)) then begin
+        if not Assigned(PFPrintWindow) or (not PFPrintWindow(GetHostedFMXFormWindowHandle, Canvas.Handle, PW_CLIENTONLY)) then begin
           // Paint a message that was unable to show a preview image
           Rect.Inflate(-16, -16);
           strText := FFMXForm.Name + ' : Unable to draw preview image';
