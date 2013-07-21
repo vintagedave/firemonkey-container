@@ -60,11 +60,10 @@ object Form1: TForm1
     Width = 443
     Height = 309
     ActivePage = TabSheet1
+    Anchors = [akLeft, akTop, akRight, akBottom]
     TabOrder = 1
     object TabSheet1: TTabSheet
       Caption = 'TabSheet1'
-      ExplicitWidth = 443
-      ExplicitHeight = 291
       object Panel1: TPanel
         AlignWithMargins = True
         Left = 1
@@ -76,10 +75,6 @@ object Form1: TForm1
         BevelInner = bvLowered
         Caption = 'Panel1'
         TabOrder = 0
-        ExplicitLeft = 0
-        ExplicitTop = -30
-        ExplicitWidth = 435
-        ExplicitHeight = 311
         object FireMonkeyContainer1: TFireMonkeyContainer
           Left = 2
           Top = 2
@@ -88,14 +83,14 @@ object Form1: TForm1
           OnCreateFMXForm = FireMonkeyContainer1CreateFMXForm
           OnDestroyFMXForm = FireMonkeyContainer1DestroyFMXForm
           Align = alClient
-          ExplicitWidth = 431
-          ExplicitHeight = 307
         end
       end
     end
     object TabSheet2: TTabSheet
       Caption = 'TabSheet2'
       ImageIndex = 1
+      ExplicitLeft = 0
+      ExplicitTop = 0
       ExplicitWidth = 443
       ExplicitHeight = 291
       object Panel2: TPanel
