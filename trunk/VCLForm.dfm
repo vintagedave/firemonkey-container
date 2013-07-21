@@ -35,7 +35,7 @@ object Form1: TForm1
     Left = 465
     Top = 48
     Width = 203
-    Height = 277
+    Height = 177
     Anchors = [akTop, akRight, akBottom]
     AutoSize = False
     Caption = 
@@ -58,10 +58,19 @@ object Form1: TForm1
       Top = 2
       Width = 431
       Height = 307
-      FireMonkeyForm = FireMonkeyForm.Owner
+      OnCreateFMXForm = FireMonkeyContainer1CreateFMXForm
+      OnDestroyFMXForm = FireMonkeyContainer1DestroyFMXForm
       Align = alClient
-      ExplicitTop = 3
-      ExplicitHeight = 301
     end
+  end
+  object btnOpenAnotherForm: TButton
+    Left = 465
+    Top = 302
+    Width = 203
+    Height = 25
+    Anchors = [akRight, akBottom]
+    Caption = 'Open another form'
+    TabOrder = 1
+    OnClick = btnOpenAnotherFormClick
   end
 end
