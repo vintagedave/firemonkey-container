@@ -339,11 +339,12 @@ procedure TFireMonkeyContainer.HandleFMXFormActivate(var Msg: TMessage);
 begin
   assert((Msg.Msg = WM_ACTIVATE) or (Msg.Msg = WM_MOUSEACTIVATE));
   // So many brackets! But: "if this isn't recursively being sent, and it's an activation message"
-  if (not FHandlingFMXActivation and HandleAllocated) and
-     (((Msg.Msg = WM_ACTIVATE) and (Msg.WParam <> WA_INACTIVE)) or
-      ((Msg.Msg = WM_MOUSEACTIVATE) and ((Msg.WParam = MA_ACTIVATE) or ((Msg.WParam = MA_ACTIVATEANDEAT))))) then
-  begin
-    Winapi.Windows.PostMessage(Handle, WM_FMX_FORM_ACTIVATED, 0, 0);
+  if (not FHandlingFMXActivation) and HandleAllocated then begin
+    if ((Msg.Msg = WM_ACTIVATE) and (Msg.WParam <> WA_INACTIVE)) or
+        ((Msg.Msg = WM_MOUSEACTIVATE) and ((Msg.WParam = MA_ACTIVATE) or ((Msg.WParam = MA_ACTIVATEANDEAT)))) then
+    begin
+      Winapi.Windows.PostMessage(Handle, WM_FMX_FORM_ACTIVATED, WPARAM(GetHostedFMXFormWindowHandle), 0);
+    end;
   end;
 end;
 
@@ -444,15 +445,30 @@ begin
 end;
 
 procedure TFireMonkeyContainer.HostTheFMXForm;
+var
+  ParentHandle : HWND;
+  CurrentParent : TWinControl;
+  FormName : string;
 begin
   // Don't change the FMX form etc when in design mode - changes the actual, designing form in the IDE tab
   if not (csDesigning in ComponentState) then begin
-    FFMXForm.BorderIcons := [];
-    FFMXForm.BorderStyle := TFmxFormBorderStyle.bsNone;
-    HandleResize;
-    FFMXForm.Visible := True;
-    Winapi.Windows.SetParent(GetHostedFMXFormWindowHandle, Handle);
-    SubclassFMXForm;
+    ParentHandle := Winapi.Windows.GetAncestor(GetHostedFMXFormWindowHandle, GA_PARENT);
+    CurrentParent := Vcl.Controls.FindControl(ParentHandle);
+    if (CurrentParent = nil) or (CurrentParent = Self) then begin
+      FFMXForm.BorderIcons := [];
+      FFMXForm.BorderStyle := TFmxFormBorderStyle.bsNone;
+      HandleResize;
+      FFMXForm.Visible := True;
+      Winapi.Windows.SetParent(GetHostedFMXFormWindowHandle, Handle);
+      SubclassFMXForm;
+    end else begin
+      // The FMX form is already hosted by a VCL control. This can happen when a form is set at
+      // designtime, and then two instances of the host VCL form are created and both try to host
+      // the one FMX form.
+      FormName := FFMXForm.Name;
+      SetFMXForm(nil);
+      raise Exception.Create('The FireMonkey form ''' + FormName + ''' is already hosted by another container.');
+    end;
   end;
 end;
 
