@@ -1,0 +1,104 @@
+object FormExample3D: TFormExample3D
+  Left = 0
+  Top = 0
+  Camera = Camera1
+  Caption = 'Example 3D'
+  ClientHeight = 272
+  ClientWidth = 431
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [dkDesktop, dkiPhone, dkiPad]
+  DesignerMobile = False
+  DesignerWidth = 0
+  DesignerHeight = 0
+  DesignerDeviceName = ''
+  DesignerOrientation = 0
+  object Camera1: TCamera
+    Position.Z = -5.000000000000000000
+    Width = 1.000000000000000000
+    Height = 1.000000000000000000
+    Depth = 1.000000000000000000
+  end
+  object Light1: TLight
+    Color = claSkyblue
+    LightType = ltPoint
+    SpotCutOff = 180.000000000000000000
+    Position.X = 10.000000000000000000
+    Position.Y = -7.000000000000000000
+    Position.Z = 3.000000000000000000
+    Width = 1.000000000000000000
+    Height = 1.000000000000000000
+    Depth = 1.000000000000000000
+  end
+  object Light2: TLight
+    Color = claWhite
+    LightType = ltPoint
+    SpotCutOff = 180.000000000000000000
+    Position.X = -8.000000000000000000
+    Position.Y = -3.000000000000000000
+    Position.Z = -4.000000000000000000
+    Width = 1.000000000000000000
+    Height = 1.000000000000000000
+    Depth = 1.000000000000000000
+  end
+  object RoundCube1: TRoundCube
+    Width = 7.000000000000000000
+    Height = 7.000000000000000000
+    Depth = 7.000000000000000000
+    MaterialSource = LightMaterialSource1
+    object animRotateX: TFloatAnimation
+      Enabled = True
+      Duration = 3.000000000000000000
+      Loop = True
+      PropertyName = 'RotationAngle.X'
+      StartValue = 0.000000000000000000
+      StartFromCurrent = True
+      StopValue = 359.998992919921900000
+    end
+    object FloatAnimation2: TFloatAnimation
+      Duration = 0.200000002980232200
+      Interpolation = itBounce
+      Loop = True
+      StartValue = 1.000000000000000000
+      StartFromCurrent = True
+      StopValue = 2.000000000000000000
+    end
+    object animRotateY: TFloatAnimation
+      Enabled = True
+      Duration = 2.000000000000000000
+      Loop = True
+      PropertyName = 'RotationAngle.Y'
+      StartValue = 0.000000000000000000
+      StartFromCurrent = True
+      StopValue = 359.998992919921900000
+    end
+  end
+  object Layer3D1: TLayer3D
+    Height = 56.000000000000000000
+    HitTest = False
+    Position.X = 216.000000000000000000
+    Position.Y = 244.000000000000000000
+    Projection = pjScreen
+    Resolution = 50
+    StyleLookup = 'backgroundstyle'
+    Transparency = True
+    Width = 424.000000000000000000
+    object Button1: TButton
+      Height = 22.000000000000000000
+      Position.X = 8.000000000000000000
+      Position.Y = 24.000000000000000000
+      TabOrder = 0
+      Text = 'FireMonkey 3D Form'
+      Width = 177.000000000000000000
+    end
+  end
+  object LightMaterialSource1: TLightMaterialSource
+    Diffuse = claWhite
+    Ambient = xFF202020
+    Emissive = claNull
+    Specular = xFF606060
+    Shininess = 30
+    Left = 200
+    Top = 120
+  end
+end
