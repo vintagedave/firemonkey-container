@@ -32,7 +32,8 @@ unit FMXContainer;
 interface
 
 uses
-  Vcl.Controls, Vcl.Forms, FMX.Forms, Winapi.Messages, System.Classes, Winapi.Windows;
+  Vcl.Controls, Vcl.Forms, FMX.Forms, Winapi.Messages, System.Classes, Winapi.Windows,
+  System.Generics.Collections;
 
 const
   WM_FMX_FORM_ACTIVATED = WM_USER + 1;
@@ -67,8 +68,6 @@ type
 
     procedure SubClassVCLForm;
     procedure UnSubClassVCLForm;
-    procedure VCLFormWndProc(var Msg: TMessage);
-    procedure HandleVCLFormNcActivate(var Msg: TMessage);
 
     procedure SubClassFMXForm;
     procedure UnSubClassFMXForm;
@@ -101,6 +100,38 @@ type
     property Top;
     property Width;
     property Height;
+  end;
+
+  TVCLFormHook = class
+  strict private
+    FOriginalWndProc : System.Classes.TWndMethod;
+    FForm : Vcl.Forms.TCustomForm;
+    FContainersOnThisForm : TList<TFireMonkeyContainer>;
+
+    class var FFormHooks : TDictionary<Vcl.Forms.TCustomForm, TVCLFormHook>;
+    class var FFormContainerCount : TDictionary<Vcl.Forms.TCustomForm, Integer>;
+
+    class function IncrementFormUsed(const Form : Vcl.Forms.TCustomForm) : Boolean;
+    class function DecrementFormUsed(const Form : Vcl.Forms.TCustomForm) : Boolean;
+
+    procedure AddContainerUsed(const Container : TFireMonkeyContainer);
+    procedure RemoveContainerUsed(const Container : TFireMonkeyContainer);
+
+    procedure VCLFormWndProc(var Msg: TMessage);
+    procedure HandleVCLFormNcActivate(var Msg: TMessage);
+    function IsWindowInVCLFormTree(const Wnd : HWND) : Boolean;
+    function IsHostedFMXForm(const Wnd : HWND) : Boolean;
+
+    constructor Create(const Form : Vcl.Forms.TCustomForm);
+    destructor Destroy; override;
+
+    class constructor ClassCreate;
+    class destructor ClassDestroy;
+  public
+    class function HookVCLForm(const Form : Vcl.Forms.TCustomForm;
+      const Container : TFireMonkeyContainer) : Boolean;
+    class procedure UnHookVCLForm(const Form : Vcl.Forms.TCustomForm;
+      const Container : TFireMonkeyContainer);
   end;
 
 implementation
@@ -242,10 +273,11 @@ end;
 
 procedure TFireMonkeyContainer.SetParent(AParent: TWinControl);
 begin
+  // If the parent changes, it might be changing forms.  Unhook, process the parent change, and
+  // re-hook
+
   UnSubClassVCLForm;
-
   inherited;
-
   if Assigned(Parent) then
     SubClassVCLForm;
 end;
@@ -255,13 +287,9 @@ begin
   if csDesigning in ComponentState then Exit;
   if not Assigned(FFMXForm) then Exit; // No point if not doing anything yet
 
-  // Check the form and window proc subclassing are in sync
-  assert(Assigned(FSubclassedForm) = Assigned(FOldVCLWndProc));
-
   if Assigned(GetParentForm(Self)) then begin
     FSubclassedForm := GetParentForm(Self);
-    FOldVCLWndProc := FSubclassedForm.WindowProc;
-    FSubclassedForm.WindowProc := VCLFormWndProc;
+    TVCLFormHook.HookVCLForm(FSubclassedForm, Self);
   end;
 end;
 
@@ -269,58 +297,11 @@ procedure TFireMonkeyContainer.UnSubClassVCLForm;
 begin
   if csDesigning in ComponentState then Exit;
 
-  // Check the form and window proc subclassing are in sync
-  assert(Assigned(FSubclassedForm) = Assigned(FOldVCLWndProc));
-
-  if Assigned(FOldVCLWndProc) then begin
-    // Unsubclassing occurs at late stages during component unparenting etc, and
-    // GetParentForm(Self) - the form that is subclassed - is often nil. Use the
-    // saved reference.  Try/except handler is in case (never seen) the parent form
-    // is invalid at this stage - ugly, but don't bring down the whole program
-    try
-      FSubclassedForm.WindowProc := FOldVCLWndProc;
-    except
-      // Do nothing - see above
-    end;
+  // May not have subclassed yet, eg if no FMX form assigned
+  if Assigned(FSubclassedForm) then begin
+    TVCLFormHook.UnHookVCLForm(FSubclassedForm, Self);
     FSubclassedForm := nil;
-    FOldVCLWndProc := nil;
   end;
-end;
-
-procedure TFireMonkeyContainer.VCLFormWndProc(var Msg: TMessage);
-begin
-  assert(Assigned(FOldVCLWndProc));
-
-  if (Msg.Msg = WM_NCACTIVATE) and Assigned(FFMXForm) then begin
-    HandleVCLFormNcActivate(Msg);
-  end else
-    FOldVCLWndProc(Msg);
-end;
-
-procedure TFireMonkeyContainer.HandleVCLFormNcActivate(var Msg: TMessage);
-var
-  Active : Boolean;
-  HandleBeingActivated : HWND;
-begin
-  // When the FMX form is clicked, the VCL forms draws with an inactive title bar, despite the
-  // window parenting.  Fix this by changing the active value the VCL form is told to draw
-  assert(Msg.Msg = WM_NCACTIVATE);
-  assert(Assigned(FFMXForm));
-
-  // If wants to draw as active, fine, pass through
-  // If wants to draw as inactive, check if the FMX form is focused.  If so, draw
-  // as active too.
-  if not Boolean(Msg.WParam) then begin // if not active
-    HandleBeingActivated := HWND(Msg.LParam); // Doesn't follow MSDN, but see http://www.catch22.net/tuts/docking-toolbars-part-1
-    if HandleBeingActivated = 0 then begin
-      Active := false // Window being activated belongs to another thread
-    end else begin
-      Active := IsWindowInVCLFormTree(HandleBeingActivated);
-    end;
-    Msg.WParam := WPARAM(Active);
-  end;
-
-  FOldVCLWndProc(Msg);
 end;
 
 procedure TFireMonkeyContainer.SubClassFMXForm;
@@ -574,6 +555,314 @@ begin
   end;
 end;
 
+{ TVCLFormHook }
+{
+constructor TVCLFormHook.Create;
+begin
+  FFormContainerCount := TDictionary<Vcl.Forms.TCustomForm, Integer>.Create;
+  FContainerToForm := TDictionary<TFireMonkeyContainer, Vcl.Forms.TCustomForm>.Create;
+  FFormOriginalWndProc := TDictionary<Vcl.Forms.TCustomForm, System.Classes.TWndMethod>.Create;
+end;
+
+destructor TVCLFormHook.Destroy;
+begin
+  FFormOriginalWndProc.Free;
+  FFormContainerCount.Free;
+  FContainerToForm.Free;
+
+  inherited;
+end;
+
+function TVCLFormHook.IncrementFormUsed(const Form: Vcl.Forms.TCustomForm) : Integer;
+var
+  Value : Integer;
+begin
+  // A map of the number of FMX containers that are on a specific form
+  if FFormContainerCount.TryGetValue(Form, Value) then
+    Result := Value + 1
+  else
+    Result := 1;
+
+  FFormContainerCount.AddOrSetValue(Form, Result);
+end;
+
+procedure TVCLFormHook.DecrementFormUsed(const Form: Vcl.Forms.TCustomForm);
+var
+  Value : Integer;
+begin
+  // A map of the number of FMX containers that are on a specific form
+  // If this decrements to 0, remove the entry
+  if FFormContainerCount.TryGetValue(Form, Value) then begin
+    Dec(Value);
+    if Value > 0 then
+      FFormContainerCount.AddOrSetValue(Form, Value)
+    else
+      FFormContainerCount.Remove(Form);
+  end else
+    assert(false, 'VCL form has no FMX containers; cannot decrement');
+end;
+
+function TVCLFormHook.FindParentForm(const Container: TFireMonkeyContainer): Vcl.Forms.TCustomForm;
+begin
+  Result := Vcl.Forms.GetParentForm(Container);
+end;
+
+function TVCLFormHook.GetKnownParentForm(const Container: TFireMonkeyContainer): Vcl.Forms.TCustomForm;
+begin
+  if not FContainerToForm.TryGetValue(Container, Result) then
+    Result := nil;
+end;
+
+function TVCLFormHook.HookVCLFormForContainer(const Container: TFireMonkeyContainer) : Boolean;
+var
+  ParentForm : Vcl.Forms.TCustomForm;
+begin
+  ParentForm := FindParentForm(Container); // May not exist yet
+  if Assigned(ParentForm) then begin
+    if IncrementFormUsed(ParentForm) = 1 then begin
+      // First container on this form: hook it
+      HookVCLForm(ParentForm);
+    end;
+
+    Result := true;
+  end else
+    Result := false;
+end;
+
+procedure TVCLFormHook.HookVCLForm(const Form: Vcl.Forms.TCustomForm);
+begin
+  assert(not FFormOriginalWndProc.ContainsKey(Form)); // Otherwise already hooked?
+  FFormOriginalWndProc.Add(Form, Form.WindowProc);
+  Form.WindowProc := VCLFormWndProc;
+end;
+
+procedure TVCLFormHook.UnHookVCLFormForContainer(const Container: TFireMonkeyContainer);
+var
+  ParentForm : Vcl.Forms.TCustomForm;
+begin
+  ParentForm := GetKnownParentForm(Container); // Registered when HookVCLFormForContainer called
+  assert(Assigned(ParentForm));
+
+  if DecrementFormUsed(ParentForm) = 0 then begin
+    // Last container on this form: unhook it
+    UnHookVCLForm(ParentForm);
+  end;
+end;
+
+procedure TVCLFormHook.UnHookVCLForm(const Form: Vcl.Forms.TCustomForm);
+begin
+  assert(FFormOriginalWndProc.ContainsKey(Form)); // Otherwise not hooked?
+
+  Form.WindowProc := FFormOriginalWndProc[Form];
+  FFormOriginalWndProc.Remove(Form);
+end;
+
+procedure TVCLFormHook.VCLFormWndProc(var Msg: TMessage);
+begin
+  assert(Assigned(FOldVCLWndProc));
+
+  if (Msg.Msg = WM_NCACTIVATE) and Assigned(FFMXForm) then begin
+    HandleVCLFormNcActivate(Msg);
+  end else
+    FOldVCLWndProc(Msg);
+end;
+
+procedure TVCLFormHook.HandleVCLFormNcActivate(var Msg: TMessage);
+var
+  Active : Boolean;
+  HandleBeingActivated : HWND;
+begin
+  // When the FMX form is clicked, the VCL forms draws with an inactive title bar, despite the
+  // window parenting.  Fix this by changing the active value the VCL form is told to draw
+  assert(Msg.Msg = WM_NCACTIVATE);
+  assert(Assigned(FFMXForm));
+
+  // If wants to draw as active, fine, pass through
+  // If wants to draw as inactive, check if the FMX form is focused.  If so, draw
+  // as active too.
+  if not Boolean(Msg.WParam) then begin // if not active
+    HandleBeingActivated := HWND(Msg.LParam); // Doesn't follow MSDN, but see http://www.catch22.net/tuts/docking-toolbars-part-1
+    if HandleBeingActivated = 0 then begin
+      Active := false // Window being activated belongs to another thread
+    end else begin
+      Active := IsWindowInVCLFormTree(HandleBeingActivated);
+    end;
+    Msg.WParam := WPARAM(Active);
+  end;
+
+  FOldVCLWndProc(Msg);
+end;
+}
+
+{ TVCLFormHook }
+
+class constructor TVCLFormHook.ClassCreate;
+begin
+  FFormHooks := TDictionary<Vcl.Forms.TCustomForm, TVCLFormHook>.Create;
+  FFormContainerCount := TDictionary<Vcl.Forms.TCustomForm, Integer>.Create;
+end;
+
+class destructor TVCLFormHook.ClassDestroy;
+begin
+  FFormContainerCount.Free;
+  assert(FFormHooks.Count = 0);
+  FFormHooks.Free;
+end;
+
+class function TVCLFormHook.HookVCLForm(const Form: Vcl.Forms.TCustomForm;
+  const Container: TFireMonkeyContainer): Boolean;
+var
+  Hook : TVCLFormHook;
+begin
+  assert(FFormContainerCount.ContainsKey(Form) = FFormHooks.ContainsKey(Form)); // Otherwise mismatched
+
+  // If the form doesn't already have a hook, install one
+  if IncrementFormUsed(Form) then begin // This was the last container on the form
+    Hook := TVCLFormHook.Create(Form);
+    FFormHooks.Add(Form, Hook);
+    IncrementFormUsed(Form);
+  end;
+
+  // Whether the above installed a new hook or not, one now exists.  Tell it about this
+  // container
+  Hook := FFormHooks[Form];
+  Hook.AddContainerUsed(Container);
+end;
+
+class procedure TVCLFormHook.UnHookVCLForm(const Form: Vcl.Forms.TCustomForm;
+  const Container: TFireMonkeyContainer);
+begin
+  // Assuming a hook was already installed on the form (otherwise why is this being called?)
+  // tell it this container is no longer being used
+  assert(FFormHooks.ContainsKey(Form));
+  FFormHooks[Form].RemoveContainerUsed(Container);
+
+  if DecrementFormUsed(Form) then begin // This was the last container on the form
+    FFormHooks[Form].Free;
+    FFormHooks.Remove(Form);
+  end;
+end;
+
+class function TVCLFormHook.IncrementFormUsed(const Form: Vcl.Forms.TCustomForm) : Boolean;
+var
+  Value : Integer;
+begin
+  if FFormContainerCount.TryGetValue(Form, Value) then begin
+    Result := false;
+    FFormContainerCount.AddOrSetValue(Form, Value + 1);
+  end else begin
+    Result := true; // The first added
+    FFormContainerCount.AddOrSetValue(Form, 1);
+  end;
+end;
+
+class function TVCLFormHook.DecrementFormUsed(const Form: Vcl.Forms.TCustomForm) : Boolean;
+var
+  Value : Integer;
+begin
+  Result := false;
+  if FFormContainerCount.TryGetValue(Form, Value) then begin
+    Dec(Value);
+    assert(Value >= 0, 'Container count decremented below 0');
+    if Value = 0 then begin
+      Result := true; // This was the last container on the form
+      FFormContainerCount.Remove(Form)
+    end else begin
+      FFormContainerCount.AddOrSetValue(Form, Value);
+    end;
+  end else
+    assert(false, 'Container count decremented but count did not exist');
+end;
+
+constructor TVCLFormHook.Create(const Form : Vcl.Forms.TCustomForm);
+begin
+  FForm := Form;
+  FOriginalWndProc := Form.WindowProc;
+  Form.WindowProc := VCLFormWndProc;
+  FContainersOnThisForm := TList<TFireMonkeyContainer>.Create;
+
+  inherited Create();
+end;
+
+destructor TVCLFormHook.Destroy;
+begin
+  FForm.WindowProc := FOriginalWndProc;
+  assert(FContainersOnThisForm.Count = 0); // Unhooking form when a container hasn't unregistered itself?
+  FContainersOnThisForm.Free;
+
+  inherited;
+end;
+
+procedure TVCLFormHook.AddContainerUsed(const Container: TFireMonkeyContainer);
+begin
+  assert(not FContainersOnThisForm.Contains(Container), 'FMX container added to form twice');
+  FContainersOnThisForm.Add(Container);
+end;
+
+procedure TVCLFormHook.RemoveContainerUsed(const Container: TFireMonkeyContainer);
+begin
+  assert(FContainersOnThisForm.Contains(Container), 'FMX container not registered with form');
+  FContainersOnThisForm.Remove(Container);
+end;
+
+function TVCLFormHook.IsWindowInVCLFormTree(const Wnd: HWND): Boolean;
+begin
+  // This method is the reason for registering the containers on a form etc - need to know if
+  // Wnd represents a FMX control embedded somewhere in this form
+
+  Result := (Wnd = FForm.Handle) or
+    Winapi.Windows.IsChild(FForm.Handle, Wnd) or
+      IsHostedFMXForm(Wnd);
+    //(Wnd = GetHostedFMXFormWindowHandle);
+end;
+
+function TVCLFormHook.IsHostedFMXForm(const Wnd: HWND): Boolean;
+var
+  Container : TFireMonkeyContainer;
+begin
+  for Container in FContainersOnThisForm do
+    if Container.GetHostedFMXFormWindowHandle = Wnd then
+      Exit(true);
+
+  // Fallthrough: not the handle of a FMX form hosted in a container on this form
+  Exit(false);
+end;
+
+procedure TVCLFormHook.VCLFormWndProc(var Msg: TMessage);
+begin
+  assert(Assigned(FOriginalWndProc));
+
+  if (Msg.Msg = WM_NCACTIVATE) then begin
+    HandleVCLFormNcActivate(Msg);
+  end else
+    FOriginalWndProc(Msg);
+end;
+
+procedure TVCLFormHook.HandleVCLFormNcActivate(var Msg: TMessage);
+var
+  Active : Boolean;
+  HandleBeingActivated : HWND;
+begin
+  // When the FMX form is clicked, the VCL forms draws with an inactive title bar, despite the
+  // window parenting.  Fix this by changing the active value the VCL form is told to draw
+  assert(Msg.Msg = WM_NCACTIVATE);
+
+  // If wants to draw as active, fine, pass through
+  // If wants to draw as inactive, check if the FMX form is focused.  If so, draw
+  // as active too.
+  if not Boolean(Msg.WParam) then begin // if not active
+    HandleBeingActivated := HWND(Msg.LParam); // Doesn't follow MSDN, but see http://www.catch22.net/tuts/docking-toolbars-part-1
+    if HandleBeingActivated = 0 then begin
+      Active := false // Window being activated belongs to another thread
+    end else begin
+      Active := IsWindowInVCLFormTree(HandleBeingActivated);
+    end;
+    Msg.WParam := WPARAM(Active);
+  end;
+
+  FOriginalWndProc(Msg);
+end;
+
 initialization
   PFPrintWindow := GetProcAddress(GetModuleHandle(Winapi.Windows.user32), 'PrintWindow'); // XP+ only
 
@@ -581,3 +870,4 @@ finalization
   PFPrintWindow := nil;
 
 end.
+
