@@ -582,7 +582,7 @@ begin
   assert(FFormContainerCount.ContainsKey(Form) = FFormHooks.ContainsKey(Form)); // Otherwise mismatched
 
   // If the form doesn't already have a hook, install one
-  if IncrementFormUsed(Form) then begin // This was the last container on the form
+  if IncrementFormUsed(Form) then begin // This is the first container on the form
     Hook := TVCLFormHook.Create(Form);
     FFormHooks.Add(Form, Hook);
   end;
