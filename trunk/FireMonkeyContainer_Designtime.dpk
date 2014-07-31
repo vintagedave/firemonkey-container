@@ -31,10 +31,10 @@ requires
   rtl,
   vcl,
   designide,
-  fmx;
+  fmx,
+  FireMonkeyContainer_Runtime;
 
 contains
-  FMXContainer in 'FMXContainer.pas',
   FMXContainerReg in 'FMXContainerReg.pas';
 
 end.

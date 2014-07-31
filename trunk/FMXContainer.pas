@@ -21,6 +21,8 @@ unit FMXContainer;
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s): David Millington
+ *                 Ilya S
+ *                 Paul Thornton
  *
  * Originally based on code found here:
  *  - http://delphisorcery.blogspot.com/2011/09/delphi-xe2-heating-up-hype-playing.html
@@ -501,14 +503,25 @@ end;
 
 function TFireMonkeyContainer.GetFMXFormWindowHandle(const Form: FMX.Forms.TCommonCustomForm): HWND;
 var
+{$IF CompilerVersion >= 25.0} // XE4+
   WinHandle : TWinWindowHandle;
+{$ELSE} // XE3 and XE2
+  WinHandle : HWND;
+{$IFEND}
 begin
   assert(Assigned(Form));
   Result := 0;
+  {$IF CompilerVersion >= 25.0} // XE4+
   if Assigned(Form) and Assigned(Form.Handle) then begin
     WinHandle := WindowHandleToPlatform(Form.Handle);
     if Assigned(WinHandle) then Exit(WinHandle.Wnd);
   end;
+{$ELSE} // XE3 and XE2
+  if Assigned(Form) and (Form.Handle <> 0) then begin
+    WinHandle := FmxHandleToHWND(Form.Handle);
+    if (WinHandle <> 0) then Exit(WinHandle);
+  end;
+{$IFEND}
 end;
 
 procedure TFireMonkeyContainer.WMPaint(var Message: TWMPaint);
