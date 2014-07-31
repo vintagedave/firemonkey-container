@@ -8,7 +8,12 @@ object FireMonkeyForm: TFireMonkeyForm
   Visible = True
   FormFactor.Width = 320
   FormFactor.Height = 480
-  FormFactor.Devices = [dkDesktop]
+  FormFactor.Devices = [dkDesktop, dkiPhone, dkiPad]
+  DesignerMobile = False
+  DesignerWidth = 0
+  DesignerHeight = 0
+  DesignerDeviceName = ''
+  DesignerOrientation = 0
   object GroupBox1: TGroupBox
     StyledSettings = [ssFamily, ssSize, ssStyle, ssFontColor, ssOther]
     Height = 257.000000000000000000
@@ -20,11 +25,12 @@ object FireMonkeyForm: TFireMonkeyForm
     Position.Y = 8.000000000000000000
     Text = 'FireMonkey'
     Width = 415.000000000000000000
+    TabOrder = 0
     object Button1: TButton
-      DisableFocusEffect = False
       Height = 22.000000000000000000
       Position.X = 24.000000000000000000
       Position.Y = 30.000000000000000000
+      TabOrder = 0
       Text = 'Button1'
       Width = 80.000000000000000000
       OnClick = ButtonClick
@@ -37,10 +43,10 @@ object FireMonkeyForm: TFireMonkeyForm
       end
     end
     object Button2: TButton
-      DisableFocusEffect = False
       Height = 22.000000000000000000
       Position.X = 24.000000000000000000
       Position.Y = 70.000000000000000000
+      TabOrder = 1
       Text = 'Button2'
       Width = 80.000000000000000000
       OnClick = ButtonClick
@@ -51,13 +57,12 @@ object FireMonkeyForm: TFireMonkeyForm
       end
     end
     object Edit1: TEdit
-      DisableFocusEffect = False
-      KeyboardType = vktDefault
-      Password = False
+      TabOrder = 2
       Position.X = 144.000000000000000000
       Position.Y = 32.000000000000000000
       Width = 257.000000000000000000
       Height = 22.000000000000000000
+      KillFocusByReturn = False
       object GlowEffect1: TGlowEffect
         Softness = 0.400000005960464500
         GlowColor = claGold
@@ -69,28 +74,31 @@ object FireMonkeyForm: TFireMonkeyForm
       Position.X = 144.000000000000000000
       Position.Y = 80.000000000000000000
       TabIndex = 0
+      TabOrder = 3
       Width = 257.000000000000000000
       object TabItem1: TTabItem
         WordWrap = False
-        Height = 24.000000000000000000
+        Height = 22.000000000000000000
         IsSelected = True
         Position.X = 1.000000000000000000
+        TabOrder = 0
         Text = 'TabItem1'
         Width = 68.000000000000000000
         object AlphaTrackBar1: TAlphaTrackBar
-          DisableFocusEffect = False
           Height = 20.000000000000000000
           Orientation = orHorizontal
           Position.X = 16.000000000000000000
           Position.Y = 18.000000000000000000
+          TabOrder = 0
           Width = 100.000000000000000000
         end
       end
       object TabItem2: TTabItem
         WordWrap = False
-        Height = 24.000000000000000000
+        Height = 22.000000000000000000
         IsSelected = False
         Position.X = 69.000000000000000000
+        TabOrder = 1
         Text = 'TabItem2'
         Width = 68.000000000000000000
       end
@@ -100,6 +108,7 @@ object FireMonkeyForm: TFireMonkeyForm
       IsChecked = False
       Position.X = 24.000000000000000000
       Position.Y = 120.000000000000000000
+      TabOrder = 4
       Width = 78.000000000000000000
     end
     object AniIndicator1: TAniIndicator
