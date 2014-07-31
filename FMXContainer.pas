@@ -458,7 +458,7 @@ begin
     if (CurrentParent = nil) then begin
       FFMXForm.BorderIcons := [];
       {$WARN SYMBOL_DEPRECATED OFF} // None is deprecated in favour of bsNone; keep this for compatibility
-      FFMXForm.BorderStyle := TFmxFormBorderStyle.None;
+      FFMXForm.BorderStyle := TFmxFormBorderStyle.bsNone;
       HandleResize;
       FFMXForm.Visible := True;
 
