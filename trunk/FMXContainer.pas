@@ -21,6 +21,7 @@ unit FMXContainer;
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s): David Millington
+ *                 Edgar Reis
  *                 Ilya S
  *                 Paul Thornton
  *
