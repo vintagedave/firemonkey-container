@@ -20,6 +20,8 @@ type
     FireMonkeyContainer1: TFireMonkeyContainer;
     Panel2: TPanel;
     FireMonkeyContainer2: TFireMonkeyContainer;
+    btnDrag: TButton;
+    Label3: TLabel;
     procedure FireMonkeyContainer1CreateFMXForm(var Form: TCommonCustomForm);
     procedure FireMonkeyContainer1DestroyFMXForm(var Form: TCommonCustomForm;
       var Action: TCloseHostedFMXFormAction);
@@ -27,6 +29,9 @@ type
     procedure FireMonkeyContainer2CreateFMXForm(var Form: TCommonCustomForm);
     procedure FireMonkeyContainer2DestroyFMXForm(var Form: TCommonCustomForm;
       var Action: TCloseHostedFMXFormAction);
+    procedure FireMonkeyContainerDragOver(Sender, Source: TObject; X, Y: Integer;
+      State: TDragState; var Accept: Boolean);
+    procedure FireMonkeyContainerDragDrop(Sender, Source: TObject; X, Y: Integer);
   private
     { Private declarations }
   public
@@ -66,5 +71,31 @@ procedure TForm1.FireMonkeyContainer2DestroyFMXForm(var Form: TCommonCustomForm;
 begin
   Action := fcaNone;
 end;
+
+procedure TForm1.FireMonkeyContainerDragOver(Sender, Source: TObject; X, Y: Integer;
+  State: TDragState; var Accept: Boolean);
+begin
+  Accept := true;
+end;
+
+procedure TForm1.FireMonkeyContainerDragDrop(Sender, Source: TObject; X, Y: Integer);
+  function GetObjectInfo(const Obj : TObject) : string;
+  begin
+    if not Assigned(Obj) then Exit('nil');
+    Result := Obj.ClassName;
+    if Obj is TComponent then
+      Result := (Obj as TComponent).Name;
+    if Obj is TFireMonkeyContainer then
+      Result := Result + ' which contains ' + GetObjectInfo((Obj as TFireMonkeyContainer).FireMonkeyForm);
+  end;
+var
+  DragInfo : string;
+begin
+  DragInfo := 'You dragged ' + GetObjectInfo(Source) + ' onto ' + GetObjectInfo(Sender) + '.'
+    + #13 + 'Mouse coords: ' + IntToStr(X) + ', ' + IntToStr(Y);
+  MessageDlg(DragInfo, TMsgDlgType.mtInformation, [TMsgDlgBtn.mbOK], 0);
+end;
+
+
 
 end.
