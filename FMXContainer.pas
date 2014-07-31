@@ -397,15 +397,21 @@ begin
 end;
 
 procedure TFireMonkeyContainer.HandleResize;
-var
-  WindowService : IFMXWindowService;
+{$IF CompilerVersion >= 24.0} // XE3+
+  var
+    WindowService : IFMXWindowService;
+{$IFEND}
 begin
   if csDesigning in ComponentState then Exit; // Do not actually change the form when designing
 
   if Assigned(FFMXForm) and HandleAllocated then begin
-    WindowService := TPlatformServices.Current.GetPlatformService(IFMXWindowService) as IFMXWindowService;
-    WindowService.SetWindowRect(FFMXForm, RectF(0, 0, Width, Height));
-    FFMXForm.Invalidate;
+    {$IF CompilerVersion >= 24.0} // XE3+
+      WindowService := TPlatformServices.Current.GetPlatformService(IFMXWindowService) as IFMXWindowService;
+      WindowService.SetWindowRect(FFMXForm, RectF(0, 0, Width, Height));
+      FFMXForm.Invalidate;
+    {$ELSE} // XE2
+      Platform.SetWindowRect(FFMXForm, RectF(0, 0, Width, Height));
+    {$IFEND}
   end;
 end;
 
