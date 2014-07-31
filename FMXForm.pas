@@ -15,7 +15,6 @@ type
     ShadowEffect1: TShadowEffect;
     Button2: TButton;
     ReflectionEffect1: TReflectionEffect;
-    StyleBook2: TStyleBook;
     Edit1: TEdit;
     GlowEffect1: TGlowEffect;
     TabControl1: TTabControl;
@@ -24,6 +23,7 @@ type
     TabItem2: TTabItem;
     Switch1: TSwitch;
     AniIndicator1: TAniIndicator;
+    procedure ButtonClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -36,5 +36,10 @@ var
 implementation
 
 {$R *.fmx}
+
+procedure TFireMonkeyForm.ButtonClick(Sender: TObject);
+begin
+  MessageDlg('Hello from ' + (Sender as TComponent).Name, TMsgDlgType.mtInformation, [TMsgDlgBtn.mbOK], 0);
+end;
 
 end.

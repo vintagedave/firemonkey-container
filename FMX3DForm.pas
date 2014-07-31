@@ -6,7 +6,7 @@ uses
   System.SysUtils, System.Types, System.Variants, System.UITypes,
   System.Classes, FMX.Types, FMX.Dialogs, FMX.Types3D, FMX.Forms,
   FMX.Forms3D, FMX.Controls3D, FMX.Objects3D, FMX.StdCtrls, FMX.Controls, FMX.Layers3D, FMX.Ani,
-  FMX.MaterialSources;
+  FMX.MaterialSources, System.Math.Vectors;
 
 type
   TFormExample3D = class(TForm3D)
@@ -20,6 +20,7 @@ type
     animRotateX: TFloatAnimation;
     FloatAnimation2: TFloatAnimation;
     animRotateY: TFloatAnimation;
+    procedure Button1Click(Sender: TObject);
   private
     { Private declarations }
   public
@@ -32,5 +33,10 @@ var
 implementation
 
 {$R *.fmx}
+
+procedure TFormExample3D.Button1Click(Sender: TObject);
+begin
+  MessageDlg('Hello from ' + (Sender as TComponent).Name, TMsgDlgType.mtInformation, [TMsgDlgBtn.mbOK], 0);
+end;
 
 end.

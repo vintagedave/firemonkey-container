@@ -35,13 +35,23 @@ object Form1: TForm1
     Left = 465
     Top = 48
     Width = 203
-    Height = 177
+    Height = 73
     Anchors = [akTop, akRight, akBottom]
     AutoSize = False
     Caption = 
       'This is a VCL form holding VCL controls. On the left is a TFireM' +
       'onkeyContainer inside a TPanel (to show a border.)  It is holdin' +
       'g a FireMonkey form.'
+    WordWrap = True
+  end
+  object Label3: TLabel
+    Left = 465
+    Top = 129
+    Width = 213
+    Height = 39
+    Caption = 
+      'FireMonkeyContainers get drag/drop events (pass these on to your' +
+      ' embedded form however you want.)'
     WordWrap = True
   end
   object btnOpenAnotherForm: TButton
@@ -83,16 +93,14 @@ object Form1: TForm1
           OnCreateFMXForm = FireMonkeyContainer1CreateFMXForm
           OnDestroyFMXForm = FireMonkeyContainer1DestroyFMXForm
           Align = alClient
+          OnDragDrop = FireMonkeyContainerDragDrop
+          OnDragOver = FireMonkeyContainerDragOver
         end
       end
     end
     object TabSheet2: TTabSheet
       Caption = 'TabSheet2'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 443
-      ExplicitHeight = 291
       object Panel2: TPanel
         AlignWithMargins = True
         Left = 1
@@ -104,8 +112,6 @@ object Form1: TForm1
         BevelInner = bvLowered
         Caption = 'Panel1'
         TabOrder = 0
-        ExplicitLeft = 4
-        ExplicitTop = 6
         object FireMonkeyContainer2: TFireMonkeyContainer
           Left = 2
           Top = 2
@@ -114,8 +120,20 @@ object Form1: TForm1
           OnCreateFMXForm = FireMonkeyContainer2CreateFMXForm
           OnDestroyFMXForm = FireMonkeyContainer2DestroyFMXForm
           Align = alClient
+          OnDragDrop = FireMonkeyContainerDragDrop
+          OnDragOver = FireMonkeyContainerDragOver
         end
       end
     end
+  end
+  object btnDrag: TButton
+    Left = 465
+    Top = 171
+    Width = 203
+    Height = 30
+    Anchors = [akTop, akRight]
+    Caption = 'Drag me over a FMX form'
+    DragMode = dmAutomatic
+    TabOrder = 2
   end
 end
