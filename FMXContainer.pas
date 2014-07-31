@@ -88,6 +88,7 @@ type
     procedure BeforeDestruction; override;
   published
     property FireMonkeyForm : FMX.Forms.TCommonCustomForm read FFMXForm write SetFMXForm;
+    property FireMonkeyFormHandle : HWND read GetHostedFMXFormWindowHandle;
     property OnCreateFMXForm : TOnCreateFMXFormEvent read FOnCreateForm write FOnCreateForm;
     property OnDestroyFMXForm : TOnDestroyFMXFormEvent read FOnDestroyForm write FOnDestroyForm;
     property Align;
@@ -98,6 +99,10 @@ type
     property Top;
     property Width;
     property Height;
+    property OnDragDrop;
+    property OnDragOver;
+    property OnEndDock;
+    property OnEndDrag;
   end;
 
   TVCLFormHook = class
@@ -106,23 +111,22 @@ type
     FForm : Vcl.Forms.TCustomForm;
     FContainersOnThisForm : TList<TFireMonkeyContainer>;
 
-    class var FFormHooks : TDictionary<Vcl.Forms.TCustomForm, TVCLFormHook>;
-    class var FFormContainerCount : TDictionary<Vcl.Forms.TCustomForm, Integer>;
-
-    class constructor ClassCreate;
-    class destructor ClassDestroy;
     class function IncrementFormUsed(const Form : Vcl.Forms.TCustomForm) : Boolean;
     class function DecrementFormUsed(const Form : Vcl.Forms.TCustomForm) : Boolean;
 
-    constructor Create(const Form : Vcl.Forms.TCustomForm);
-    destructor Destroy; override;
     procedure AddContainerUsed(const Container : TFireMonkeyContainer);
     procedure RemoveContainerUsed(const Container : TFireMonkeyContainer);
     procedure VCLFormWndProc(var Msg: TMessage);
     procedure HandleVCLFormNcActivate(var Msg: TMessage);
     function IsWindowInVCLFormTree(const Wnd : HWND) : Boolean;
     function IsHostedFMXForm(const Wnd : HWND) : Boolean;
+  private
+    class var FFormHooks : TDictionary<Vcl.Forms.TCustomForm, TVCLFormHook>;
+    class var FFormContainerCount : TDictionary<Vcl.Forms.TCustomForm, Integer>;
   public
+    constructor Create(const Form : Vcl.Forms.TCustomForm);
+    destructor Destroy; override;
+
     class procedure HookVCLForm(const Form : Vcl.Forms.TCustomForm;
       const Container : TFireMonkeyContainer);
     class procedure UnHookVCLForm(const Form : Vcl.Forms.TCustomForm;
@@ -165,7 +169,7 @@ begin
   Result := True; // Fallthrough, keep iterating
 end;
 
-{ TDMFiremonkeyContainer }
+{ TFiremonkeyContainer }
 
 constructor TFireMonkeyContainer.Create(Owner: TComponent);
 begin
@@ -451,20 +455,34 @@ begin
   if not (csDesigning in ComponentState) then begin
     ParentHandle := Winapi.Windows.GetAncestor(GetHostedFMXFormWindowHandle, GA_PARENT);
     CurrentParent := Vcl.Controls.FindControl(ParentHandle);
-    if (CurrentParent = nil) or (CurrentParent = Self) then begin
+    if (CurrentParent = nil) then begin
       FFMXForm.BorderIcons := [];
-      FFMXForm.BorderStyle := TFmxFormBorderStyle.bsNone;
+      {$WARN SYMBOL_DEPRECATED OFF} // None is deprecated in favour of bsNone; keep this for compatibility
+      FFMXForm.BorderStyle := TFmxFormBorderStyle.None;
       HandleResize;
       FFMXForm.Visible := True;
+
+      // To set the parent, remove the WS_CHILD and WS_POPUP states - otherwise, the owner remains
+      // the FMX app class window. (That means GetParent returns the FMX app window not the VCL host
+      // window, which breaks some things including drag-drop.) Then set the parent, set ws_child
+      // again.
+      Winapi.Windows.SetWindowLong(GetHostedFMXFormWindowHandle, GWL_STYLE,
+        Winapi.Windows.GetWindowLong(GetHostedFMXFormWindowHandle, GWL_STYLE) and not (WS_POPUP OR WS_CHILD));
       Winapi.Windows.SetParent(GetHostedFMXFormWindowHandle, Handle);
+      Winapi.Windows.SetWindowLong(GetHostedFMXFormWindowHandle, GWL_STYLE,
+        Winapi.Windows.GetWindowLong(GetHostedFMXFormWindowHandle, GWL_STYLE) or WS_CHILD);
+      Winapi.Windows.SetParent(GetHostedFMXFormWindowHandle, Handle);
+
       SubclassFMXForm;
-    end else begin
+      HandleResize; // Now it's reparented ensure it's in the right position
+    end else if CurrentParent <> Self then begin
       // The FMX form is already hosted by a VCL control. This can happen when a form is set at
       // designtime, and then two instances of the host VCL form are created and both try to host
       // the one FMX form.
       FormName := FFMXForm.Name;
       SetFMXForm(nil);
-      raise Exception.Create('The FireMonkey form ''' + FormName + ''' is already hosted by another container.');
+      raise Exception.Create('The FireMonkey form ''' + FormName + ''' is already hosted by another'
+        + ' container,  ''' + CurrentParent.Name + '''.');
     end;
   end;
 end;
@@ -560,19 +578,6 @@ end;
   hosting a FMX form and is just sitting there empty.) HookVCLForm or UnHookVCLForm only actually
   hook or unhook if the container is the first/last, as above.
 }
-
-class constructor TVCLFormHook.ClassCreate;
-begin
-  FFormHooks := TDictionary<Vcl.Forms.TCustomForm, TVCLFormHook>.Create;
-  FFormContainerCount := TDictionary<Vcl.Forms.TCustomForm, Integer>.Create;
-end;
-
-class destructor TVCLFormHook.ClassDestroy;
-begin
-  FFormContainerCount.Free;
-  assert(FFormHooks.Count = 0);
-  FFormHooks.Free;
-end;
 
 class procedure TVCLFormHook.HookVCLForm(const Form: Vcl.Forms.TCustomForm;
   const Container: TFireMonkeyContainer);
@@ -729,9 +734,17 @@ end;
 
 initialization
   PFPrintWindow := GetProcAddress(GetModuleHandle(Winapi.Windows.user32), 'PrintWindow'); // XP+ only
+  // TVCLFormHook class constructor replacement (not a supported language feature in C++)
+  TVCLFormHook.FFormHooks := TDictionary<Vcl.Forms.TCustomForm, TVCLFormHook>.Create;
+  TVCLFormHook.FFormContainerCount := TDictionary<Vcl.Forms.TCustomForm, Integer>.Create;
+
 
 finalization
   PFPrintWindow := nil;
+  // TVCLFormHook class destructor replacement (not a supported language feature in C++)
+  TVCLFormHook.FFormContainerCount.Free;
+  assert(TVCLFormHook.FFormHooks.Count = 0);
+  TVCLFormHook.FFormHooks.Free;
 
 end.
 
