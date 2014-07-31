@@ -5,7 +5,7 @@ interface
 uses
   System.SysUtils, System.Types, System.UITypes, System.Rtti, System.Classes,
   System.Variants, FMX.Types, FMX.Controls, FMX.Forms, FMX.Dialogs,
-  FMX.Effects, FMX.Colors, FMX.TabControl, FMX.Menus,
+  FMX.StdCtrls, FMX.Effects, FMX.Colors, FMX.TabControl, FMX.Menus,
   FMX.Filter.Effects, FMX.Edit;
 
 type

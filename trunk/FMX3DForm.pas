@@ -5,8 +5,8 @@ interface
 uses
   System.SysUtils, System.Types, System.Variants, System.UITypes,
   System.Classes, FMX.Types, FMX.Dialogs, FMX.Types3D, FMX.Forms,
-  FMX.Objects3D, FMX.Controls, FMX.Layers3D, FMX.Ani,
-  FMX.Materials;
+  FMX.Forms3D, FMX.Controls3D, FMX.Objects3D, FMX.StdCtrls, FMX.Controls, FMX.Layers3D, FMX.Ani,
+  FMX.MaterialSources;
 
 type
   TFormExample3D = class(TForm3D)
