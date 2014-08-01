@@ -1,4 +1,4 @@
-package FireMonkeyContainer_Design;
+package FMXContainer_Runtime_XE2;
 
 {$R *.res}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
@@ -25,16 +25,16 @@ package FireMonkeyContainer_Design;
 {$IMAGEBASE $400000}
 {$DEFINE RELEASE}
 {$ENDIF IMPLICITBUILDING}
+{$DESCRIPTION 'TFireMonkeyContainer runtime package'}
+{$RUNONLY}
 {$IMPLICITBUILD ON}
 
 requires
   rtl,
   vcl,
-  designide,
   fmx;
 
 contains
-  FMXContainer in 'FMXContainer.pas',
-  FMXContainerReg in 'FMXContainerReg.pas';
+  FMXContainer in '..\FMXContainer.pas';
 
 end.
