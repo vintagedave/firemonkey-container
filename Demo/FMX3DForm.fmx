@@ -43,25 +43,6 @@ object FormExample3D: TFormExample3D
       StopValue = 360.000000000000000000
     end
   end
-  object Layer3D1: TLayer3D
-    Height = 32.000000000000000000
-    HitTest = False
-    Position.X = 215.000000000000000000
-    Position.Y = 259.000000000000000000
-    Resolution = 50
-    StyleLookup = 'backgroundstyle'
-    Transparency = True
-    Width = 422.000000000000000000
-    object Button1: TButton
-      Height = 22.000000000000000000
-      Position.X = 8.000000000000000000
-      Position.Y = 1.000000000000000000
-      TabOrder = 0
-      Text = 'FireMonkey 3D Form'
-      Width = 177.000000000000000000
-      OnClick = Button1Click
-    end
-  end
   object LightMaterialSource1: TLightMaterialSource
     Diffuse = claGray
     Ambient = xFF202020
