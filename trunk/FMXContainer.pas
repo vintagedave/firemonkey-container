@@ -517,7 +517,7 @@ var
   WinHandle : HWND;
 {$IFEND}
 begin
-  assert(Assigned(Form));
+  // assert(Assigned(Form)); -- ok unassigned at designtime etc
   Result := 0;
   {$IF CompilerVersion >= 25.0} // XE4+
   if Assigned(Form) and Assigned(Form.Handle) then begin
