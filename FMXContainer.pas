@@ -504,7 +504,7 @@ end;
 
 function TFireMonkeyContainer.GetHostedFMXFormWindowHandle: HWND;
 begin
-  assert(Assigned(FFMXForm));
+  // assert(Assigned(FFMXForm)); - can validly be nil at designtime or if unassigned at runtime
   Result := GetFMXFormWindowHandle(FFMXForm);
 end;
 

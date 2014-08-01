@@ -7,15 +7,13 @@ object FormExample3D: TFormExample3D
   ClientWidth = 431
   FormFactor.Width = 320
   FormFactor.Height = 480
-  FormFactor.Devices = [Desktop, iPhone, iPad]
+  FormFactor.Devices = [dkDesktop, dkiPhone, dkiPad]
   DesignerMobile = False
   DesignerWidth = 0
   DesignerHeight = 0
   DesignerDeviceName = ''
   DesignerOrientation = 0
-  DesignerOSVersion = ''
   object Camera1: TCamera
-    AngleOfView = 45.000000000000000000
     Position.Z = -5.000000000000000000
     Width = 1.000000000000000000
     Height = 1.000000000000000000
@@ -50,7 +48,6 @@ object FormExample3D: TFormExample3D
     HitTest = False
     Position.X = 215.000000000000000000
     Position.Y = 259.000000000000000000
-    Projection = Screen
     Resolution = 50
     StyleLookup = 'backgroundstyle'
     Transparency = True
@@ -76,7 +73,7 @@ object FormExample3D: TFormExample3D
   end
   object Light1: TLight
     Color = claSkyblue
-    LightType = Directional
+    LightType = ltDirectional
     SpotCutOff = 180.000000000000000000
     Position.X = 10.000000000000000000
     Position.Y = -7.000000000000000000
@@ -87,7 +84,7 @@ object FormExample3D: TFormExample3D
   end
   object Light2: TLight
     Color = claGray
-    LightType = Directional
+    LightType = ltDirectional
     SpotCutOff = 180.000000000000000000
     Position.X = -8.000000000000000000
     Position.Y = -3.000000000000000000
