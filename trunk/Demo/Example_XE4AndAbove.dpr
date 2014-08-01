@@ -1,4 +1,4 @@
-program Example;
+program Example_XE4AndAbove;
 
 uses
   Vcl.Forms,
