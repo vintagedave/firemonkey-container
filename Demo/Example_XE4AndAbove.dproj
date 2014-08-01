@@ -3,7 +3,7 @@
         <ProjectGuid>{03C32DCE-4582-4FFD-99A1-8D55F3AC561B}</ProjectGuid>
         <ProjectVersion>15.4</ProjectVersion>
         <FrameworkType>VCL</FrameworkType>
-        <MainSource>Example.dpr</MainSource>
+        <MainSource>Example_XE4AndAbove.dpr</MainSource>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Release</Config>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
@@ -171,7 +171,7 @@
                     <VersionInfoKeys Name="CFBundleDevelopmentRegion"/>
                 </VersionInfoKeys>
                 <Source>
-                    <Source Name="MainSource">Example.dpr</Source>
+                    <Source Name="MainSource">Example_XE4AndAbove.dpr</Source>
                 </Source>
                 <Excluded_Packages>
                     <Excluded_Packages Name="C:\Program Files (x86)\Raize\RC6\Bin\RaizeComponentsTrialVcl_Design180.bpl">File C:\Program Files (x86)\Raize\RC6\Bin\RaizeComponentsTrialVcl_Design180.bpl not found</Excluded_Packages>
