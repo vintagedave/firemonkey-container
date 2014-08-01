@@ -1,7 +1,7 @@
 object Form1: TForm1
   Left = 0
   Top = 0
-  Caption = 'VCL form'
+  Caption = 'TFireMonkeyContainer demo'
   ClientHeight = 340
   ClientWidth = 680
   Color = clBtnFace
