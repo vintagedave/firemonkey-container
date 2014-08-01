@@ -46,6 +46,7 @@
 			<Base>true</Base>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Base)'!=''">
+			<DCC_HppOutput>$(BDSCOMMONDIR)\hpp</DCC_HppOutput>
 			<DCC_UsePackage>rtl;$(DCC_UsePackage)</DCC_UsePackage>
 			<GenPackage>true</GenPackage>
 			<VerInfo_Locale>3081</VerInfo_Locale>
