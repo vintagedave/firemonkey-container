@@ -484,6 +484,7 @@ begin
 
       SubclassFMXForm;
       HandleResize; // Now it's reparented ensure it's in the right position
+      Winapi.Windows.SetFocus(Handle); // Can lose focus to the VCL form, the first time hosted
     end else if CurrentParent <> Self then begin
       // The FMX form is already hosted by a VCL control. This can happen when a form is set at
       // designtime, and then two instances of the host VCL form are created and both try to host
