@@ -20,7 +20,7 @@ unit FMXContainer;
  * Portions created by the Initial Developer are Copyright (C) 2013
  * the Initial Developer. All Rights Reserved.
  *
- * Contributor(s): David Millington
+ * Contributor(s): David Millington (author)
  *                 Edgar Reis
  *                 Ilya S
  *                 Paul Thornton
@@ -85,6 +85,10 @@ type
     procedure CreateHandle; override;
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
     procedure SetParent(AParent: TWinControl); override;
+
+    procedure WMKeyDown(var Message: TWMKeyDown); message WM_KEYDOWN;
+    procedure WMGetDlgCode(var Msg : TMessage); message WM_GETDLGCODE;
+    procedure KeyUp(var Key: Word; Shift: TShiftState); override;
   public
     constructor Create(Owner : TComponent); override;
     destructor Destroy; override;
@@ -107,6 +111,22 @@ type
     property OnEndDock;
     property OnEndDrag;
   end;
+
+implementation
+
+uses
+  FMX.Platform, FMX.Platform.Win, System.Types, SysUtils, Graphics, Vcl.Dialogs, System.SyncObjs,
+  System.UITypes;
+
+const
+  PW_CLIENTONLY = $1;
+
+var
+  PFPrintWindow : function(Hnd: HWND; HdcBlt: HDC; nFlags: UINT): BOOL; stdcall; // Not declared in Windows.pas
+
+type
+  TWinControlHack = class(TWinControl);
+  TFMXApplicationHack = class(FMX.Forms.TApplication);
 
   TVCLFormHook = class
   strict private
@@ -136,16 +156,39 @@ type
       const Container : TFireMonkeyContainer);
   end;
 
-implementation
+  TFMXAppRunningHackThread = class(TThread)
+  protected
+    procedure Execute; override;
+  end;
 
-uses
-  FMX.Platform, FMX.Platform.Win, System.Types, SysUtils, Graphics, Vcl.Dialogs;
+  TFMXAppRunningHack = class
+  private
+    class var FEvent : TEvent;
+    class var FFMXAppRunningThread : TFMXAppRunningHackThread;
 
-const
-  PW_CLIENTONLY = $1;
+    class procedure EnsureFMXAppRunning;
+    class procedure TerminateFMXApp;
+  end;
 
-var
-  PFPrintWindow : function(Hnd: HWND; HdcBlt: HDC; nFlags: UINT): BOOL; stdcall; // Not declared in Windows.pas
+  TFMXAppServiceReplacement = class(TInterfacedObject, IFMXApplicationService)
+  strict private
+    FEvent : TEvent;
+    FTerminating : Boolean;
+  public
+    constructor Create(WakeEvent : TEvent);
+
+    // IFMXApplicationService
+    procedure Run;
+    function HandleMessage: Boolean;
+    procedure WaitMessage;
+    function GetDefaultTitle: string;
+    function GetTitle: string;
+    procedure SetTitle(const Value: string);
+    procedure Terminate;
+    function Terminating: Boolean;
+    property DefaultTitle: string read GetDefaultTitle;
+    property Title: string read GetTitle write SetTitle;
+  end;
 
 function EnumWindowCallback(hWnd: HWND; lParam: LPARAM): BOOL; stdcall;
 const
@@ -184,6 +227,7 @@ begin
   FNewFMXWndProc := nil;
   FCreateFormCalled := false;
   FHandlingFMXActivation := false;
+  TabStop := true; // Want to be focused on tabs
 end;
 
 destructor TFireMonkeyContainer.Destroy;
@@ -328,22 +372,53 @@ begin
 end;
 
 procedure TFireMonkeyContainer.FMXFormWndProc(var Msg: TMessage);
+var
+  CallOriginal : Boolean;
 begin
-  if (Msg.Msg = WM_ACTIVATE) or (Msg.Msg = WM_MOUSEACTIVATE) then begin
-    HandleFMXFormActivate(Msg);
+  CallOriginal := true;
+
+  case Msg.Msg of
+    WM_ACTIVATE, WM_MOUSEACTIVATE: begin // Activate when clicked on
+      HandleFMXFormActivate(Msg);
+      CallOriginal := false;
+    end;
+    WM_LBUTTONDOWN, WM_RBUTTONDOWN: begin
+      if Assigned(FFMXForm) and (GetFocus <> GetHostedFMXFormWindowHandle) then
+        HandleFMXFormActivate(Msg); // clicked on the FMX form, ensure it's active
+    end;
+    WM_KILLFOCUS: begin
+      if Assigned(FFMXForm) and (Msg.LParam <> GetHostedFMXFormWindowHandle) then
+        FFMXForm.Active := false; // Stops the caret displaying
+    end;
+    WM_GETDLGCODE: begin
+      // Want to process arrow keys and characters, for text fields
+      // Characters work through FMX container's WM_KEYDOWN and WM_KEYUP but arrow keys don't
+      WMGetDlgCode(Msg);
+      CallOriginal := Msg.Result <> 0;
+    end;
   end;
-  Msg.Result := CallWindowProc(FOldFMXWndProc, GetHostedFMXFormWindowHandle, Msg.Msg, Msg.WParam, Msg.LParam);
+
+  if CallOriginal then
+    Msg.Result := CallWindowProc(FOldFMXWndProc, GetHostedFMXFormWindowHandle, Msg.Msg, Msg.WParam, Msg.LParam);
 end;
 
 procedure TFireMonkeyContainer.HandleFMXFormActivate(var Msg: TMessage);
 begin
-  assert((Msg.Msg = WM_ACTIVATE) or (Msg.Msg = WM_MOUSEACTIVATE));
-  // So many brackets! But: "if this isn't recursively being sent, and it's an activation message"
+  assert((Msg.Msg = WM_ACTIVATE) or (Msg.Msg = WM_MOUSEACTIVATE) or (Msg.Msg = WM_LBUTTONDOWN) or (Msg.Msg = WM_RBUTTONDOWN));
+  // So many brackets! But: "if this isn't recursively being sent, and it's an activation message
+  // or it's being clicked on"
   if (not FHandlingFMXActivation) and HandleAllocated then begin
     if ((Msg.Msg = WM_ACTIVATE) and (Msg.WParam <> WA_INACTIVE)) or
-        ((Msg.Msg = WM_MOUSEACTIVATE) and ((Msg.WParam = MA_ACTIVATE) or ((Msg.WParam = MA_ACTIVATEANDEAT)))) then
+        ((Msg.Msg = WM_MOUSEACTIVATE) and ((Msg.WParam = MA_ACTIVATE) or ((Msg.WParam = MA_ACTIVATEANDEAT)))) or
+        ((Msg.Msg = WM_LBUTTONDOWN) or (Msg.Msg = WM_RBUTTONDOWN)) then
     begin
+      // Immediately tell the form it is active, because TCustomCaret.CanShow will check
+      FFMXForm.Active := true;
+
+      // Handle title bar (etc) activation
       Winapi.Windows.PostMessage(Handle, WM_FMX_FORM_ACTIVATED, WPARAM(GetHostedFMXFormWindowHandle), 0);
+    end else if ((Msg.Msg = WM_ACTIVATE) and (Msg.WParam = WA_INACTIVE)) then begin
+      FFMXForm.Active := false;
     end;
   end;
 end;
@@ -417,6 +492,9 @@ end;
 
 procedure TFireMonkeyContainer.SetFMXForm(Form: FMX.Forms.TCommonCustomForm);
 begin
+  if Assigned(Form) then // No need to do this if there's no form
+    TFMXAppRunningHack.EnsureFMXAppRunning; // The first time it's called, sets FMX.Forms.Application state to running
+
   UnSubClassVCLForm;
   if Assigned(FFMXForm) then begin
     UnSubClassFMXForm;
@@ -432,6 +510,9 @@ begin
       HostTheFMXForm;
       SubClassVCLForm;
     end;
+
+    FFMXForm.Active := true;
+    Winapi.Windows.PostMessage(Handle, WM_FMX_FORM_ACTIVATED, WPARAM(GetHostedFMXFormWindowHandle), 0);
   end;
 end;
 
@@ -485,6 +566,7 @@ begin
       SubclassFMXForm;
       HandleResize; // Now it's reparented ensure it's in the right position
       Winapi.Windows.SetFocus(Handle); // Can lose focus to the VCL form, the first time hosted
+      Winapi.Windows.SetFocus(GetHostedFMXFormWindowHandle);
     end else if CurrentParent <> Self then begin
       // The FMX form is already hosted by a VCL control. This can happen when a form is set at
       // designtime, and then two instances of the host VCL form are created and both try to host
@@ -577,6 +659,83 @@ begin
     end;
   end;
 end;
+
+procedure TFireMonkeyContainer.WMGetDlgCode(var Msg: TMessage);
+var
+  M: PMsg;
+begin
+  // From http://stackoverflow.com/questions/5632411/arrow-key-not-working-in-component
+  Msg.Result := DLGC_WANTALLKEYS or DLGC_WANTARROWS or DLGC_WANTCHARS;
+  if Msg.lParam <> 0 then
+    begin
+      M := PMsg(Msg.lParam);
+      case M.message of
+        WM_KEYDOWN, WM_KEYUP, WM_CHAR:
+        begin
+          Perform(M.message, M.wParam, M.lParam);
+          Msg.Result := Msg.Result or DLGC_WANTMESSAGE;
+        end;
+      end;
+    end
+  else
+    Msg.Result := Msg.Result or DLGC_WANTMESSAGE;
+end;
+
+procedure TFireMonkeyContainer.WMKeyDown(var Message: TWMKeyDown);
+var
+  ParentForm : Vcl.Forms.TCustomForm;
+  Msg : TMsg;
+  Shift : TShiftState;
+  Key : Word;
+  KeyChar : Char;
+begin
+  if not Assigned(FFMXForm) then begin
+    inherited;
+    Exit;
+  end;
+
+  // Mimic how FMX handles keys. In a key-down event, it translates the message (causing a WM_CHAR
+  // message to be posted), looks in the queue for a WM_CHAR, and then sends that char to the
+  // keydown event.
+  // However, this has to integrate with the VCL too, so mimic part of what the VCL does - sending
+  // WM_KEYDOWN to the parent form - before the FMX compatibility.
+
+  // TWinControl.DoKeyDown does essentially this:
+  ParentForm := GetParentForm(Self, false);
+  while Assigned(ParentForm) do begin
+    if ParentForm.KeyPreview and TWinControlHack(ParentForm).DoKeyDown(Message) then
+      Exit;
+    if Assigned(ParentForm.Parent) then // GetParentForm(form) returns the form itself, not its parent...
+      ParentForm := GetParentForm(ParentForm.Parent, false)
+    else
+      ParentForm := nil;
+  end;
+
+  Shift := KeyDataToShiftState(Message.CharCode);
+
+  // Now, behave as FMX does:
+  // No need to call TranslateMessage(Message) first, TApplication.ProcessMessage does this
+  if PeekMessage(Msg, 0, WM_CHAR, WM_CHAR, PM_REMOVE) then begin
+    Key := Msg.wParam;
+    KeyChar := Char(Msg.wParam);
+    // Call again to remove any duplicate
+    PeekMessage(Msg, 0, WM_CHAR, WM_CHAR, PM_REMOVE);
+    FFMXForm.KeyDown(Key, KeyChar, Shift);
+  end;
+end;
+
+procedure TFireMonkeyContainer.KeyUp(var Key: Word; Shift: TShiftState);
+var
+  KeyAsChar : Char;
+begin
+  if Assigned(FFMXForm) then begin
+    KeyAsChar := Char(Key);
+    FFMXForm.KeyUp(Key, KeyAsChar, Shift);
+  end;
+
+  inherited;
+end;
+
 
 { TVCLFormHook }
 
@@ -753,12 +912,127 @@ begin
   FOriginalWndProc(Msg);
 end;
 
+{ TFMXAppRunningHack }
+
+class procedure TFMXAppRunningHack.EnsureFMXAppRunning;
+begin
+  // This is a really BAD hack. Need to get TApplication.TApplication.FRunning to true, because
+  // it affects the behaviour of a lot of forms etc (including the caret, oddly enough, because a
+  // FMX form won't be active if the app isn't running.)
+  // This is private and completely inaccessible - there's no cracker class way to get at it, or a
+  // method that will adjust it
+  // TApplication.Run is very simple though: sets FRunning to true, calls IFMXApplicationService.Run,
+  // and then sets it to false. So, replace IFMXApplicationService with our own implementation that
+  // does nothing but wait for an event, then create a thread that calls TApplication.Run. That
+  // thread sets FRunning to true, sits doing nothing in the custom IFMXApplicationService.Run
+  // implementation, until the app shuts down and the thread is woken and terminated.
+  if not Assigned(FFMXAppRunningThread) then begin
+    // Create an event that will be signaled when the FMX application needs to stop running
+    // Manual reset, initially in unset state
+    FEvent := TEvent.Create(nil, true, false, '');
+
+    // Replace the application service
+    TPlatformServices.Current.RemovePlatformService(IFMXApplicationService);
+    TPlatformServices.Current.AddPlatformService(IFMXApplicationService, TFMXAppServiceReplacement.Create(FEvent));
+
+    // Finally, run!
+    FFMXAppRunningThread := TFMXAppRunningHackThread.Create;
+  end;
+end;
+
+class procedure TFMXAppRunningHack.TerminateFMXApp;
+begin
+  if Assigned(FFMXAppRunningThread) then begin
+    assert(Assigned(FEvent));
+    FEvent.SetEvent; // Wakes the FMX app running thread, which now terminates
+    FFMXAppRunningThread.WaitFor;
+    FreeAndNil(FFMXAppRunningThread);
+    FreeAndNil(FEvent);
+  end;
+end;
+
+{ TFMXAppRunningHackThread }
+
+procedure TFMXAppRunningHackThread.Execute;
+begin
+  // Check the custom IFMXApplicationService installed
+  assert(TPlatformServices.Current.GetPlatformService(IFMXApplicationService) is TFMXAppServiceReplacement);
+
+  NameThreadForDebugging('TFireMonkeyContainer FMX App Running Thread');
+
+  // Will immediately pause, waiting for an event
+  FMX.Forms.Application.Run;
+end;
+
+{ TFMXAppServiceReplacement }
+
+constructor TFMXAppServiceReplacement.Create(WakeEvent: TEvent);
+begin
+  FEvent := WakeEvent; // Not owned, don't free on destruction
+  FTerminating := false;
+end;
+
+procedure TFMXAppServiceReplacement.Run;
+begin
+  // Do nothing while running; this event is set when the app should terminate
+  // See explanation for why this happens (and how the whole FMX app running hack works) in
+  // TFMXAppRunningHack.EnsureFMXAppRunning
+  FEvent.WaitFor(INFINITE);
+end;
+
+procedure TFMXAppServiceReplacement.Terminate;
+begin
+  // If for some reason FMX.Forms.Application.Terminate is called, terminate the FMX app
+  // and also terminate the VCL app
+  if not FTerminating then begin
+    FTerminating := true;
+    TFMXAppRunningHack.TerminateFMXApp;
+    VCL.Forms.Application.Terminate;
+  end;
+end;
+
+function TFMXAppServiceReplacement.Terminating: Boolean;
+begin
+  Result := FTerminating;
+end;
+
+function TFMXAppServiceReplacement.HandleMessage: Boolean;
+begin
+  Result := false; // No message handled (called from ProcessMessages, but not called while FMX
+  // forms are embedded since FMX app doesn't run normally)
+  assert(false); // Should not be called
+end;
+
+procedure TFMXAppServiceReplacement.WaitMessage;
+begin
+  // Do nothing (called from Application.Idle - not called when FMX forms are embedded since FMX
+  // app doesn't run normally)
+  assert(false); // Should not be called
+end;
+
+function TFMXAppServiceReplacement.GetDefaultTitle: string;
+begin
+  Result := '';
+end;
+
+function TFMXAppServiceReplacement.GetTitle: string;
+begin
+  Result := '';
+end;
+
+procedure TFMXAppServiceReplacement.SetTitle(const Value: string);
+begin
+  //
+end;
+
 initialization
   PFPrintWindow := GetProcAddress(GetModuleHandle(Winapi.Windows.user32), 'PrintWindow'); // XP+ only
   // TVCLFormHook class constructor replacement (not a supported language feature in C++)
   TVCLFormHook.FFormHooks := TDictionary<Vcl.Forms.TCustomForm, TVCLFormHook>.Create;
   TVCLFormHook.FFormContainerCount := TDictionary<Vcl.Forms.TCustomForm, Integer>.Create;
-
+  // TFMXAppRunningHack class constructor replacement (not a supported language feature in C++)
+  TFMXAppRunningHack.FFMXAppRunningThread := nil;
+  TFMXAppRunningHack.FEvent := nil;
 
 finalization
   PFPrintWindow := nil;
@@ -766,6 +1040,8 @@ finalization
   TVCLFormHook.FFormContainerCount.Free;
   assert(TVCLFormHook.FFormHooks.Count = 0);
   TVCLFormHook.FFormHooks.Free;
+  // TFMXAppRunningHack class destructor replacement (not a supported language feature in C++)
+  TFMXAppRunningHack.TerminateFMXApp;
 
 end.
 
