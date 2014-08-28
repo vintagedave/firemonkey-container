@@ -387,7 +387,7 @@ begin
         HandleFMXFormActivate(Msg); // clicked on the FMX form, ensure it's active
     end;
     WM_KILLFOCUS: begin
-      if Assigned(FFMXForm) and (Msg.LParam <> GetHostedFMXFormWindowHandle) then
+      if Assigned(FFMXForm) and (HWND(Msg.LParam) <> GetHostedFMXFormWindowHandle) then
         FFMXForm.Active := false; // Stops the caret displaying
     end;
     WM_GETDLGCODE: begin
