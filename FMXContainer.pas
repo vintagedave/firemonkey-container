@@ -116,7 +116,7 @@ implementation
 
 uses
   FMX.Platform, FMX.Platform.Win, System.Types, SysUtils, Graphics, Vcl.Dialogs, System.SyncObjs,
-  System.UITypes;
+  System.UITypes, FMX.Types;
 
 const
   PW_CLIENTONLY = $1;
@@ -387,8 +387,11 @@ begin
         HandleFMXFormActivate(Msg); // clicked on the FMX form, ensure it's active
     end;
     WM_KILLFOCUS: begin
-      if Assigned(FFMXForm) and (HWND(Msg.LParam) <> GetHostedFMXFormWindowHandle) then
+      if Assigned(FFMXForm) and (HWND(Msg.LParam) <> GetHostedFMXFormWindowHandle) and FFMXForm.Active
+        and HandleAllocated and not Focused
+      then begin
         FFMXForm.Active := false; // Stops the caret displaying
+      end;
     end;
     WM_GETDLGCODE: begin
       // Want to process arrow keys and characters, for text fields
@@ -510,9 +513,6 @@ begin
       HostTheFMXForm;
       SubClassVCLForm;
     end;
-
-    FFMXForm.Active := true;
-    Winapi.Windows.PostMessage(Handle, WM_FMX_FORM_ACTIVATED, WPARAM(GetHostedFMXFormWindowHandle), 0);
   end;
 end;
 
@@ -567,6 +567,9 @@ begin
       HandleResize; // Now it's reparented ensure it's in the right position
       Winapi.Windows.SetFocus(Handle); // Can lose focus to the VCL form, the first time hosted
       Winapi.Windows.SetFocus(GetHostedFMXFormWindowHandle);
+
+      FFMXForm.Active := true;
+      Winapi.Windows.PostMessage(Handle, WM_FMX_FORM_ACTIVATED, WPARAM(GetHostedFMXFormWindowHandle), 0);
     end else if CurrentParent <> Self then begin
       // The FMX form is already hosted by a VCL control. This can happen when a form is set at
       // designtime, and then two instances of the host VCL form are created and both try to host
