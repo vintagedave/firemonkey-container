@@ -1,8 +1,8 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{29B41ADF-2531-46B3-A79C-0F46AC72EF85}</ProjectGuid>
+        <ProjectGuid>{75223CAD-5654-4497-A22D-B95F1874D7A0}</ProjectGuid>
         <MainSource>FMXContainer_Designtime_XE6.dpk</MainSource>
-        <ProjectVersion>15.4</ProjectVersion>
+        <ProjectVersion>16.0</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Release</Config>

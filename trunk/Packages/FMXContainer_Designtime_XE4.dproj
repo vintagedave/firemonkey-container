@@ -1,8 +1,8 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{29B41ADF-2531-46B3-A79C-0F46AC72EF85}</ProjectGuid>
+        <ProjectGuid>{4FDFBF11-0B83-4C3C-951A-5F3577EB9C0A}</ProjectGuid>
         <MainSource>FMXContainer_Designtime_XE4.dpk</MainSource>
-        <ProjectVersion>14.6</ProjectVersion>
+        <ProjectVersion>16.0</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Release</Config>
@@ -46,6 +46,7 @@
         <Base>true</Base>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
+        <SanitizedProjectName>FMXContainer_Designtime_XE4</SanitizedProjectName>
         <DCC_HppOutput>$(BDSCOMMONDIR)\hpp</DCC_HppOutput>
         <DCC_UsePackage>rtl;$(DCC_UsePackage)</DCC_UsePackage>
         <GenPackage>true</GenPackage>
@@ -89,7 +90,7 @@
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
         <DCC_Define>RELEASE;$(DCC_Define)</DCC_Define>
         <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
-        <DCC_DebugInformation>false</DCC_DebugInformation>
+        <DCC_DebugInformation>0</DCC_DebugInformation>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
         <VerInfo_Locale>1033</VerInfo_Locale>
@@ -164,6 +165,7 @@
             </Delphi.Personality>
             <Deployment/>
             <Platforms>
+                <Platform value="Android">False</Platform>
                 <Platform value="iOSDevice">False</Platform>
                 <Platform value="iOSSimulator">False</Platform>
                 <Platform value="OSX32">False</Platform>

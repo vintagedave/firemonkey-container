@@ -1,8 +1,8 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{96C3D6FC-89B8-4122-B303-2F0A5B79737D}</ProjectGuid>
+        <ProjectGuid>{FE341162-2602-4151-AE83-39CB28F1E2F1}</ProjectGuid>
         <MainSource>FMXContainer_Runtime_XE6.dpk</MainSource>
-        <ProjectVersion>15.4</ProjectVersion>
+        <ProjectVersion>16.0</ProjectVersion>
         <FrameworkType>VCL</FrameworkType>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Release</Config>

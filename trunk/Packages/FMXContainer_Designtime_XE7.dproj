@@ -1,6 +1,6 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{29B41ADF-2531-46B3-A79C-0F46AC72EF85}</ProjectGuid>
+        <ProjectGuid>{E1F0693A-AD1D-4610-8692-B4D9DF19CCCF}</ProjectGuid>
         <MainSource>FMXContainer_Designtime_XE7.dpk</MainSource>
         <ProjectVersion>16.0</ProjectVersion>
         <FrameworkType>None</FrameworkType>
