@@ -1,8 +1,8 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{29B41ADF-2531-46B3-A79C-0F46AC72EF85}</ProjectGuid>
+        <ProjectGuid>{CBBE1B90-3FB0-441A-82DC-5F7255249D2E}</ProjectGuid>
         <MainSource>FMXContainer_Designtime_XE5.dpk</MainSource>
-        <ProjectVersion>15.3</ProjectVersion>
+        <ProjectVersion>16.0</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Release</Config>
@@ -46,6 +46,7 @@
         <Base>true</Base>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
+        <SanitizedProjectName>FMXContainer_Designtime_XE5</SanitizedProjectName>
         <DCC_HppOutput>$(BDSCOMMONDIR)\hpp</DCC_HppOutput>
         <DCC_UsePackage>rtl;$(DCC_UsePackage)</DCC_UsePackage>
         <GenPackage>true</GenPackage>
