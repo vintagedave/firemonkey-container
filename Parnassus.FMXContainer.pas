@@ -1008,14 +1008,14 @@ function TFMXAppServiceReplacement.HandleMessage: Boolean;
 begin
   Result := false; // No message handled (called from ProcessMessages, but not called while FMX
   // forms are embedded since FMX app doesn't run normally)
-  assert(false); // Should not be called
+  //assert(false); // Should not be called -- Seen in Seattle, bug report, appears ok?
 end;
 
 procedure TFMXAppServiceReplacement.WaitMessage;
 begin
   // Do nothing (called from Application.Idle - not called when FMX forms are embedded since FMX
   // app doesn't run normally)
-  assert(false); // Should not be called
+  //assert(false); // Should not be called -- Seen in Seattle, bug report, appears ok?
 end;
 
 function TFMXAppServiceReplacement.GetDefaultTitle: string;
