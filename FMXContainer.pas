@@ -186,6 +186,11 @@ type
     procedure SetTitle(const Value: string);
     procedure Terminate;
     function Terminating: Boolean;
+
+    {$if CompilerVersion >= 29} // XE8 and above
+      function GetVersionString: string;
+    {$endif}
+
     property DefaultTitle: string read GetDefaultTitle;
     property Title: string read GetTitle write SetTitle;
   end;
@@ -1027,6 +1032,13 @@ procedure TFMXAppServiceReplacement.SetTitle(const Value: string);
 begin
   //
 end;
+
+{$if CompilerVersion >= 29} // XE8 and above
+  function TFMXAppServiceReplacement.GetVersionString: string;
+  begin
+    Result := '0.0.0.0';
+  end;
+{$endif}
 
 initialization
   PFPrintWindow := GetProcAddress(GetModuleHandle(Winapi.Windows.user32), 'PrintWindow'); // XP+ only

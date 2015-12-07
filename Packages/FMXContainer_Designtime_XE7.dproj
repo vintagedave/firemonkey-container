@@ -68,7 +68,7 @@
         <DCC_K>false</DCC_K>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
-        <DCC_UsePackage>vcl;FMXContainer_Runtime_XE6;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>vcl;FMXContainer_Runtime_XE7;FMXContainer_Runtime_XE6;$(DCC_UsePackage)</DCC_UsePackage>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
@@ -102,7 +102,7 @@
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
         <DCCReference Include="rtl.dcp"/>
-        <DCCReference Include="FMXContainer_Runtime_XE6.dcp"/>
+        <DCCReference Include="FMXContainer_Runtime_XE7.dcp"/>
         <DCCReference Include="designide.dcp"/>
         <DCCReference Include="vcl.dcp"/>
         <DCCReference Include="..\FMXContainerReg.pas"/>

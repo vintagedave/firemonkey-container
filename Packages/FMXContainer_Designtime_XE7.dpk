@@ -31,7 +31,7 @@ package FMXContainer_Designtime_XE7;
 
 requires
   rtl,
-  FMXContainer_Runtime_XE6,
+  FMXContainer_Runtime_XE7,
   designide,
   vcl;
 
