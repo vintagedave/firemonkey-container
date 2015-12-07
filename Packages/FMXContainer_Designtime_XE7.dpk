@@ -31,9 +31,9 @@ package FMXContainer_Designtime_XE7;
 
 requires
   rtl,
-  FMXContainer_Runtime_XE6,
   designide,
-  vcl;
+  vcl,
+  FMXContainer_Runtime_XE7;
 
 contains
   FMXContainerReg in '..\FMXContainerReg.pas';
