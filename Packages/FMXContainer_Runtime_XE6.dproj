@@ -95,7 +95,7 @@
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="vcl.dcp"/>
         <DCCReference Include="fmx.dcp"/>
-        <DCCReference Include="..\FMXContainer.pas"/>
+        <DCCReference Include="..\Parnassus.FMXContainer.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

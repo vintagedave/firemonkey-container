@@ -35,6 +35,6 @@ requires
   fmx;
 
 contains
-  FMXContainer in '..\FMXContainer.pas';
+  Parnassus.FMXContainer in '..\Parnassus.FMXContainer.pas';
 
 end.

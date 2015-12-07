@@ -105,7 +105,7 @@
         <DCCReference Include="FMXContainer_Runtime_XE4.dcp"/>
         <DCCReference Include="designide.dcp"/>
         <DCCReference Include="vcl.dcp"/>
-        <DCCReference Include="..\FMXContainerReg.pas"/>
+        <DCCReference Include="..\Parnassus.FMXContainerReg.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

@@ -36,6 +36,6 @@ requires
   vcl;
 
 contains
-  FMXContainerReg in '..\FMXContainerReg.pas';
+  Parnassus.FMXContainerReg in '..\Parnassus.FMXContainerReg.pas';
 
 end.
