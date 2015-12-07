@@ -35,6 +35,6 @@ requires
   fmx;
 
 contains
-  FMXContainer in '..\FMXContainer.pas';
+  fmxembedded.FMXContainer in '..\fmxembedded.FMXContainer.pas';
 
 end.
