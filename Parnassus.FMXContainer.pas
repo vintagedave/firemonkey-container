@@ -257,7 +257,7 @@ begin
     FCreateFormCalled := true;
     Form := FFMXForm;
     FOnCreateForm(Form);
-    if (Form <> FFMXForm) and Assigned(FOnDestroyForm) then begin
+    if (Form <> FFMXForm) and Assigned(FOnDestroyForm) and Assigned(FFMXForm) then begin
       // Changed: want a new form, not the one it was set to. Call OnDestroy for the existing one,
       // otherwise free
       Action := fcaNone;
@@ -280,7 +280,7 @@ var
   Action : TCloseHostedFMXFormAction;
   OldForm : FMX.Forms.TCommonCustomForm;
 begin
-  if Assigned(FOnDestroyForm) and not (csDesigning in ComponentState) then begin
+  if Assigned(FOnDestroyForm) and Assigned(FFMXForm) and not (csDesigning in ComponentState) then begin
     Action := fcaNone;
     FOnDestroyForm(FFMXForm, Action);
     case Action of
@@ -367,8 +367,8 @@ begin
   if csDesigning in ComponentState then Exit;
 
   FMXHandle := GetHostedFMXFormWindowHandle;
-  assert(FMXHandle <> 0);
-  if Assigned(FOldFMXWndProc) then begin
+  //assert(FMXHandle <> 0); // Can occure when freeing parent VCL form
+  if Assigned(FOldFMXWndProc) and (FMXHandle <> 0) then begin
     Winapi.Windows.SetWindowLong(FMXHandle, GWL_WNDPROC, NativeInt(FOldFMXWndProc));
     FreeObjectInstance(FNewFMXWndProc);
     FNewFMXWndProc := nil;
