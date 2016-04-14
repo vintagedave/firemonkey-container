@@ -1001,21 +1001,26 @@ end;
 
 function TFMXAppServiceReplacement.Terminating: Boolean;
 begin
-  Result := FTerminating;
+  Result := FTerminating or Vcl.Forms.Application.Terminated;
 end;
 
 function TFMXAppServiceReplacement.HandleMessage: Boolean;
+var
+  Msg: TMsg;
 begin
-  Result := false; // No message handled (called from ProcessMessages, but not called while FMX
-  // forms are embedded since FMX app doesn't run normally)
-  //assert(false); // Should not be called -- Seen in Seattle, bug report, appears ok?
+  // Called from Application.ProcessMessages - that isn't called since the app
+  // loop doesn't run, but code can and does call it manually, including in FMX,
+  // eg in FMX.TabControl.LocalAnimateIntWait.
+  Result := False;
+  if PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) then begin
+    Result := true;
+    Vcl.Forms.Application.HandleMessage;
+  end;
 end;
 
 procedure TFMXAppServiceReplacement.WaitMessage;
 begin
-  // Do nothing (called from Application.Idle - not called when FMX forms are embedded since FMX
-  // app doesn't run normally)
-  //assert(false); // Should not be called -- Seen in Seattle, bug report, appears ok?
+  Winapi.Windows.WaitMessage;
 end;
 
 function TFMXAppServiceReplacement.GetDefaultTitle: string;
@@ -1025,18 +1030,24 @@ end;
 
 function TFMXAppServiceReplacement.GetTitle: string;
 begin
-  Result := '';
+  Result := Vcl.Forms.Application.Title;
 end;
 
 procedure TFMXAppServiceReplacement.SetTitle(const Value: string);
 begin
-  //
+  Vcl.Forms.Application.Title := Value;
 end;
 
 {$if CompilerVersion >= 29} // XE8 and above
   function TFMXAppServiceReplacement.GetVersionString: string;
+  var
+    VersionInfo: Cardinal;
   begin
-    Result := '0.0.0.0';
+    Result := '';
+    // based on FMX.Platform.Win's code
+    VersionInfo := GetFileVersion(ParamStr(0));
+    if VersionInfo <> -1 then
+      Result := Format('%d.%d', [HiWord(VersionInfo), LoWord(VersionInfo)]);
   end;
 {$endif}
 
