@@ -5,7 +5,7 @@ interface
 uses
   FMX.Forms { must be included before Vcl.Forms so that 'TForm' below refers to a VCL form, not FMX},
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, FMXForm, FMX3DForm, FMXContainer, Vcl.ExtCtrls,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, FMXForm, FMX3DForm, Parnassus.FMXContainer, Vcl.ExtCtrls,
   Vcl.StdCtrls, Vcl.ComCtrls;
 
 type
