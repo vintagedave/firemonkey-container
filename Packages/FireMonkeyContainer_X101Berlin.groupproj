@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{B37ED22C-AC8A-445F-AE48-BDC34F48B538}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="FMXContainer_Designtime_X101Berlin.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="FMXContainer_Runtime_X101Berlin.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="FMXContainer_Designtime_X101Berlin">
+        <MSBuild Projects="FMXContainer_Designtime_X101Berlin.dproj"/>
+    </Target>
+    <Target Name="FMXContainer_Designtime_X101Berlin:Clean">
+        <MSBuild Projects="FMXContainer_Designtime_X101Berlin.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="FMXContainer_Designtime_X101Berlin:Make">
+        <MSBuild Projects="FMXContainer_Designtime_X101Berlin.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="FMXContainer_Runtime_X101Berlin">
+        <MSBuild Projects="FMXContainer_Runtime_X101Berlin.dproj"/>
+    </Target>
+    <Target Name="FMXContainer_Runtime_X101Berlin:Clean">
+        <MSBuild Projects="FMXContainer_Runtime_X101Berlin.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="FMXContainer_Runtime_X101Berlin:Make">
+        <MSBuild Projects="FMXContainer_Runtime_X101Berlin.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="FMXContainer_Designtime_X101Berlin;FMXContainer_Runtime_X101Berlin"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="FMXContainer_Designtime_X101Berlin:Clean;FMXContainer_Runtime_X101Berlin:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="FMXContainer_Designtime_X101Berlin:Make;FMXContainer_Runtime_X101Berlin:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
