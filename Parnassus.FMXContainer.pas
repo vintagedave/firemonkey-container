@@ -93,9 +93,10 @@ type
     constructor Create(Owner : TComponent); override;
     destructor Destroy; override;
     procedure BeforeDestruction; override;
+
+    property FireMonkeyFormHandle : HWND read GetHostedFMXFormWindowHandle;
   published
     property FireMonkeyForm : FMX.Forms.TCommonCustomForm read FFMXForm write SetFMXForm;
-    property FireMonkeyFormHandle : HWND read GetHostedFMXFormWindowHandle;
     property OnCreateFMXForm : TOnCreateFMXFormEvent read FOnCreateForm write FOnCreateForm;
     property OnDestroyFMXForm : TOnDestroyFMXFormEvent read FOnDestroyForm write FOnDestroyForm;
     property Align;
@@ -189,6 +190,10 @@ type
 
     {$if CompilerVersion >= 29} // XE8 and above
       function GetVersionString: string;
+    {$endif}
+
+    {$if CompilerVersion >= 32} // Tokyo and above
+      function Running: Boolean;
     {$endif}
 
     property DefaultTitle: string read GetDefaultTitle;
@@ -1046,8 +1051,15 @@ end;
     Result := '';
     // based on FMX.Platform.Win's code
     VersionInfo := GetFileVersion(ParamStr(0));
-    if VersionInfo <> -1 then
+    if VersionInfo <> Cardinal(-1) then
       Result := Format('%d.%d', [HiWord(VersionInfo), LoWord(VersionInfo)]);
+  end;
+{$endif}
+
+{$if CompilerVersion >= 32} // Tokyo and above
+  function TFMXAppServiceReplacement.Running: Boolean;
+  begin
+    Result := not Terminating;
   end;
 {$endif}
 
