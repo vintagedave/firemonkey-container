@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{B37ED22C-AC8A-445F-AE48-BDC34F48B538}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="FMXContainer_Designtime_X102Tokyo.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="FMXContainer_Runtime_X102Tokyo.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="FMXContainer_Designtime_X102Tokyo">
+        <MSBuild Projects="FMXContainer_Designtime_X102Tokyo.dproj"/>
+    </Target>
+    <Target Name="FMXContainer_Designtime_X102Tokyo:Clean">
+        <MSBuild Projects="FMXContainer_Designtime_X102Tokyo.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="FMXContainer_Designtime_X102Tokyo:Make">
+        <MSBuild Projects="FMXContainer_Designtime_X102Tokyo.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="FMXContainer_Runtime_X102Tokyo">
+        <MSBuild Projects="FMXContainer_Runtime_X102Tokyo.dproj"/>
+    </Target>
+    <Target Name="FMXContainer_Runtime_X102Tokyo:Clean">
+        <MSBuild Projects="FMXContainer_Runtime_X102Tokyo.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="FMXContainer_Runtime_X102Tokyo:Make">
+        <MSBuild Projects="FMXContainer_Runtime_X102Tokyo.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="FMXContainer_Designtime_X102Tokyo;FMXContainer_Runtime_X102Tokyo"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="FMXContainer_Designtime_X102Tokyo:Clean;FMXContainer_Runtime_X102Tokyo:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="FMXContainer_Designtime_X102Tokyo:Make;FMXContainer_Runtime_X102Tokyo:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
