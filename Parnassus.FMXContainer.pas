@@ -58,6 +58,7 @@ type
     FOnDestroyForm : TOnDestroyFMXFormEvent;
     FCreateFormCalled : Boolean;
     FHandlingFMXActivation : Boolean;
+    FAllowTabKey : Boolean;
 
     procedure DoOnCreate;
     procedure DoOnDestroy;
@@ -99,6 +100,7 @@ type
     property FireMonkeyForm : FMX.Forms.TCommonCustomForm read FFMXForm write SetFMXForm;
     property OnCreateFMXForm : TOnCreateFMXFormEvent read FOnCreateForm write FOnCreateForm;
     property OnDestroyFMXForm : TOnDestroyFMXFormEvent read FOnDestroyForm write FOnDestroyForm;
+    property AllowTabKey: Boolean read FAllowTabKey write FAllowTabKey default False;
     property Align;
     property Anchors;
     property Constraints;
@@ -237,6 +239,7 @@ begin
   FNewFMXWndProc := nil;
   FCreateFormCalled := false;
   FHandlingFMXActivation := false;
+  FAllowTabKey := False;    //if true Tab is handled inside the FMX form
   TabStop := true; // Want to be focused on tabs
 end;
 
@@ -679,6 +682,8 @@ var
 begin
   // From http://stackoverflow.com/questions/5632411/arrow-key-not-working-in-component
   Msg.Result := DLGC_WANTALLKEYS or DLGC_WANTARROWS or DLGC_WANTCHARS;
+  if FAllowTabKey then
+    Msg.Result := Msg.Result or DLGC_WANTTAB;      //handle Tabs
   if Msg.lParam <> 0 then
     begin
       M := PMsg(Msg.lParam);
