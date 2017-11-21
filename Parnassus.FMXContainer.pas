@@ -734,6 +734,15 @@ begin
     // Call again to remove any duplicate
     PeekMessage(Msg, 0, WM_CHAR, WM_CHAR, PM_REMOVE);
     FFMXForm.KeyDown(Key, KeyChar, Shift);
+  end
+  else if not (Message.CharCode in [VK_SHIFT, VK_CONTROL]) then  //Shift and Control are handled by KeyDataToShiftState
+  begin
+    // In some circumstances non-character keycodes go directly to the FMX form (for instance after clicking the
+    // form). In other circumstances we land will land here.
+    // Without the following handling the KeyCodes are lost (eg. arrow keys, function keys etc. wont work)
+    Key := Message.CharCode;
+    KeyChar := #0;
+    FFMXForm.KeyDown(Key, KeyChar, Shift);
   end;
 end;
 
