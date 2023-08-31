@@ -558,7 +558,11 @@ begin
     if (CurrentParent = nil) then begin
       FFMXForm.BorderIcons := [];
       {$WARN SYMBOL_DEPRECATED OFF} // None is deprecated in favour of bsNone; keep this for compatibility
+      {$IF CompilerVersion >= 35.0}
+      FFMXForm.BorderStyle := TFmxFormBorderStyle.None;
+      {$ELSE}
       FFMXForm.BorderStyle := TFmxFormBorderStyle.bsNone;
+      {$ENDIF}
       HandleResize;
       FFMXForm.Visible := True;
 
@@ -678,7 +682,7 @@ var
   M: PMsg;
 begin
   // From http://stackoverflow.com/questions/5632411/arrow-key-not-working-in-component
-  Msg.Result := DLGC_WANTALLKEYS or DLGC_WANTARROWS or DLGC_WANTCHARS;
+  Msg.Result := DLGC_WANTALLKEYS or DLGC_WANTARROWS or DLGC_WANTCHARS or DLGC_WANTTAB;
   if Msg.lParam <> 0 then
     begin
       M := PMsg(Msg.lParam);
